@@ -1,0 +1,5 @@
+﻿df_row_index	Country	Nbr_missing	Var_missing
+1	2	Australie	1	Rent
+2	30	Nicaragua	1	Rent
+3	31	Norvege	1	ecks
+4	35	Péru	1	Rent

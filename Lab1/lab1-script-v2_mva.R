@@ -258,7 +258,7 @@ colnames(HC_df) <- c("Index", "HC_rank", "Country")
 HC_plot <- plot(HCoutlier$prob.outliers, 
                  pch="o", 
                  cex=1, 
-                 main="Potential HC outliers\n by hierarchical clustering (HC)",
+                 main="Potential HC outliers\n by hierarchical clustering (HC-Ward)",
                  ylab="HC Rank") 
 HC_plot_cutoff <- 0.5*(HC_df[HC_index_ordered[4],]$HC_rank + HC_df[HC_index_ordered[5],]$HC_rank)
 abline(h = HC_plot_cutoff, col="red")  # add cutoff line
@@ -275,7 +275,7 @@ colnames(LOF_df) <- c("Index", "LOF_rank", "Country")
 LOF_plot <- plot(LOFoutlier_k5, 
                 pch="o", 
                 cex=1, 
-                main="Potential LOF outliers\n by local outliers factor analysis (LOF)",
+                main="Potential LOF outliers\n by local outliers factor analysis (LOF-k=5)",
                 ylab="LOF Rank") 
 LOF_plot_cutoff <- 0.5*(LOF_df[LOF_index_ordered[4],]$LOF_rank + LOF_df[LOF_index_ordered[5],]$LOF_rank)
 abline(h = LOF_plot_cutoff, col="red")  # add cutoff line

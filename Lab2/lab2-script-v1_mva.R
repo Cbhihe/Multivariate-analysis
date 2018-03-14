@@ -92,7 +92,8 @@ pcaF <- function(X,wflag,wparam,...) {
          Program abort.")
   }
   
-  N <- diag(W/sum(W),nrow(X),nrow(X));rm(W) # build diagonal matrix with normalized weights
+  N <- diag(W/sum(W),nrow(X),nrow(X))  # build diagonal matrix with normalized weights
+  rm(W)
   try(if(abs(sum(diag(N))-1) >= 10**-6) 
     stop("WARNING: invalid normalization of individual weights"))  # check that matrix trace = 1
   
@@ -114,18 +115,50 @@ pcaF <- function(X,wflag,wparam,...) {
   }
   rownames(X_std) <- rownames(X)
   colnames(X_std) <- colnames(X)
-  X_std
   # correlation matrix (on X_std)
   corX <- t(X_std) %*% N  %*% X_std
   # compare with cor(X)
   print("ok 'corX'")
 
-  evals <- round(eigen(covX)$values,4)
+  evals <- round(eigen(covX)$values,3)
   cat("Eigenvalues: ",evals,"\n")
   cat("Eigenvectors:","\n"); (evecs <- eigen(covX)$vectors)
-  cat("Rank of observation matrix: ",min(ncol(X),round(sum(diag(corX)),0)),"\n")
+  cat("Rank of observation matrix: ",min(ncol(X),ceiling(sum(diag(corX)))),"\n")
+  
+  # screen eigenvalues to ascertain the nbr of significant dimensions
+  #   -> cumulative variance explanatory power of principal directions 
+  #     (evecs) associated with eigenvalues
+  cum_varexp=matrix(0,length(evals)+1,1)
+  for (ii in (1:length(evals))) {
+    cum_varexp[ii+1] <- round(cum_varexp[ii] + 100*evals[ii]/sum(evals),3)
+    cat(ii," ",evals[ii]/sum(evals)," ",cum_varexp[ii+1],"\n")
+    #cum_varexp <- c(cum_varexp,100*(cum_varexp+evals[ii]/sum(evals))) 
+  }
+  
+  # save plot in pdf file
+  barplotfile = sprintf("Lab2/Report/screeplot_%s.pdf",wflag)
+  pdf(file = barplotfile)    # open pdf file
+  plottitle = sprintf("Screeplot for %s observation weights",wflag)
+  plot(seq(1:length(evals)),evals, 
+       pch=15, 
+       cex=1,
+       col="blue",
+       type="b",
+       main=plottitle,
+       sub="(labels show cumulative variance explanatory power)",
+       xlab="Index",
+       ylab="Eigenvalues",
+       log="y")
+  text(x=1:length(evals), y=evals, 
+       labels=as.character(round(cum_varexp[-1,1],2)),
+       cex=0.75,
+       pos=1,
+       col="red")  # add labels
+  #screeplot(prcomp(covX),npcs=min(ncol(X),length(evals)), type="l", log="y")
+  grid()
+  dev.off()    # close pdf file
 
-  return()
+    return()
 } #  function closure
 
 
@@ -136,10 +169,3 @@ pcaF(X,wflag="uniform")
 weights <- rep(1:10,5); length(wparam) <- nrow(X) 
 pcaF(X,wflag="arbitrary",wparam=weights)
 
-
-p <- eigen(X_cor)$vectors
-d <- diag(eigen(X_cor)$values)
-p %*% d %*% solve(p)
-mm <- data.matrix(X_cor)
-mm == p
-t(X) %% N %% X_std

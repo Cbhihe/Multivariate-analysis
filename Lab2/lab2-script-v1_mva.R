@@ -6,6 +6,7 @@
 
 
 rm(list=ls(all=TRUE))
+library(MASS)    #  exec `install.packages("MASS")` to use 'fractions'
 #library("mice")
 #library("DMwR")
 #library("VIM")    # exec `install.packages("VIM")` in R shell first
@@ -53,7 +54,7 @@ X <- russet_imp_data ; rm(russet_imp_data)
 # function for PCA analysis
 #############################################
 
-pcaF <- function(X,wflag,wparam) {
+pcaF <- function(X,wflag,wparam,...) {
   X_ctd <- matrix(0,nrow(X),ncol(X))
   X_std <- X_ctd
 
@@ -92,8 +93,7 @@ pcaF <- function(X,wflag,wparam) {
   }
   
   N <- diag(W/sum(W),nrow(X),nrow(X));rm(W) # build diagonal matrix with normalized weights
-
-  try(if(sum(diag(N))-1 >= 10**-6) 
+  try(if(abs(sum(diag(N))-1) >= 10**-6) 
     stop("WARNING: invalid normalization of individual weights"))  # check that matrix trace = 1
   
   # centroid G of individuals.
@@ -114,20 +114,27 @@ pcaF <- function(X,wflag,wparam) {
   }
   rownames(X_std) <- rownames(X)
   colnames(X_std) <- colnames(X)
+  X_std
   # correlation matrix (on X_std)
   corX <- t(X_std) %*% N  %*% X_std
   # compare with cor(X)
   print("ok 'corX'")
-  
+
+  evals <- round(eigen(covX)$values,4)
+  cat("Eigenvalues: ",evals,"\n")
+  cat("Eigenvectors:","\n"); (evecs <- eigen(covX)$vectors)
+  cat("Rank of observation matrix: ",min(ncol(X),round(sum(diag(corX)),0)),"\n")
+
   return()
 } #  function closure
 
 
 pcaF(X,wflag="random")
-#rm(corX,covX)
+
 pcaF(X,wflag="uniform")
 
-#X_cov <- cov(X)
+weights <- rep(1:10,5); length(wparam) <- nrow(X) 
+pcaF(X,wflag="arbitrary",wparam=weights)
 
 
 p <- eigen(X_cor)$vectors

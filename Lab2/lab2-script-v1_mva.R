@@ -54,7 +54,8 @@ X_std <- X_ctd
 # function for PCA analysis
 #############################################
 
-pcaF <- function(X,wflag,...) {
+pcaF <- function(X,wflag,wparam) {
+  
 
   # "wflag" is in c("random","uniform","arbitrary")
   # if arg "wflag" is:
@@ -72,10 +73,9 @@ pcaF <- function(X,wflag,...) {
     print("ok 'random'")
     # generate random weight for each individual
     W <- runif(nrow(X))
-    # normalize weights to 1
-    W <- W/sum(W)
      
   } else if (wflag == "uniform") {
+    print("ok 'uniform'")
     # generate uniform weights distribution for each individual
     W=rep(1,nrow(X))
 
@@ -83,48 +83,51 @@ pcaF <- function(X,wflag,...) {
     try(if(length(wparam) != nrow(X) | !is.numeric(wparam)) 
         stop("WARNING: invalid individual weights given to function 'pcaF'. 
         Program abort."))
+    print("ok 'arbitrary'")
     W <- wparam
     
   } else {
-    stop("WARNING: invalid parameter \"wflag\" given to function 'pcaF'.
+    stop("WARNING: invalid parameter 'wflag' given to function 'pcaF'.
          Program abort.")
   }
   
-  N <- diag(W/sum(W),nrow(X),nrow(X))
+  N <- diag(W/sum(W),nrow(X),nrow(X)) # build diagonal matrix with normalized weights
+
   try(if(sum(diag(N)) != 1) 
-    stop("WARNING: invalid individual weight normalization"))  # check that matrix trace = 1
+    stop("WARNING: invalid normalization of individual weights"))  # check that matrix trace = 1
   
   # centroid G of individuals.
-  (centroid <- colMeans((X)))
+  centroid <- colMeans((X))
   
   # centered X matrix.
-  X_ctd <- X - matrix(rep(t(centroid), nrow(X)), ncol=9, byrow=T)
+  X_ctd <- as.matrix(X - matrix(rep(t(centroid), nrow(X)), ncol=9, byrow=T))
   rownames(X_ctd) <- rownames(X)
 
   # standardized X matrix
-  for (cc in 1:ncol(X)) X_std[,cc] <- X_ctd[,cc]/sd(X_ctd[,cc])
+  for (cc in 1:ncol(X)) X_std[,cc] <- as.matrix(X_ctd[,cc]/sd(X_ctd[,cc]))
   rownames(X_std) <- rownames(X)
   
   # covariance matrix (on) X_ctd) 
-
+  covX <- t(X_ctd) %*% N  %*% X_ctd
+  # compare with cov(X)
   
   # correlation matrix (on X_std)
+  corX <- t(X_std) %*% N  %*% X_std
+  # compare with cor(X)
   
-  
-  
-  
-  return
+  return(covX,corX)
 } #  function closure
-pcaF(X,"random")
+
+
+rm(corX,covX); pcaF(X,wflag="random")
+rm(corX,covX); pcaF(X,wflag="uniform")
 
 #X_cov <- cov(X)
-X_cor <- cor(X)
-X_cor[is.na(X_cor)] <- 0
+
+
 p <- eigen(X_cor)$vectors
 d <- diag(eigen(X_cor)$values)
 p %*% d %*% solve(p)
-
 mm <- data.matrix(X_cor)
 mm == p
-
 t(X) %% N %% X_std

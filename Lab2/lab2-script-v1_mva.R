@@ -37,25 +37,25 @@ list_files = as.vector(grep("^russet.*\\mpp.csv$",
                             value=TRUE)
 )
 
-russet_data = read.csv(paste0("Data/",list_files[1]),
+russet_imp_data = read.csv(paste0("Data/",list_files[1]),
                        header = TRUE, 
                        quote = "\"", 
                        dec = ".",
                        sep=",", 
                        check.names=TRUE)
-dim(russet_data)  # list nbr of observations followed by nbr of vars
+dim(russet_imp_data)  # list nbr of observations followed by nbr of vars
 
 # initialize matrices
-X <- russet_data ; rm(russet_data)
-X_ctd <- matrix(,nrow(X),ncol(X))
-X_std <- X_ctd
+X <- russet_imp_data ; rm(russet_imp_data)
+
 
 #############################################
 # function for PCA analysis
 #############################################
 
 pcaF <- function(X,wflag,wparam) {
-  
+  X_ctd <- matrix(0,nrow(X),ncol(X))
+  X_std <- X_ctd
 
   # "wflag" is in c("random","uniform","arbitrary")
   # if arg "wflag" is:
@@ -91,9 +91,9 @@ pcaF <- function(X,wflag,wparam) {
          Program abort.")
   }
   
-  N <- diag(W/sum(W),nrow(X),nrow(X)) # build diagonal matrix with normalized weights
+  N <- diag(W/sum(W),nrow(X),nrow(X));rm(W) # build diagonal matrix with normalized weights
 
-  try(if(sum(diag(N)) != 1) 
+  try(if(sum(diag(N))-1 >= 10**-6) 
     stop("WARNING: invalid normalization of individual weights"))  # check that matrix trace = 1
   
   # centroid G of individuals.
@@ -102,25 +102,30 @@ pcaF <- function(X,wflag,wparam) {
   # centered X matrix.
   X_ctd <- as.matrix(X - matrix(rep(t(centroid), nrow(X)), ncol=9, byrow=T))
   rownames(X_ctd) <- rownames(X)
-
-  # standardized X matrix
-  for (cc in 1:ncol(X)) X_std[,cc] <- as.matrix(X_ctd[,cc]/sd(X_ctd[,cc]))
-  rownames(X_std) <- rownames(X)
-  
+  colnames(X_ctd) <- colnames(X)
   # covariance matrix (on) X_ctd) 
   covX <- t(X_ctd) %*% N  %*% X_ctd
   # compare with cov(X)
+  print("ok 'covX'")
   
+  # standardized X matrix
+  for (cc in 1:ncol(X)) {
+    X_std[,cc] <- as.matrix(X_ctd[,cc]/sd(X_ctd[,cc]))
+  }
+  rownames(X_std) <- rownames(X)
+  colnames(X_std) <- colnames(X)
   # correlation matrix (on X_std)
   corX <- t(X_std) %*% N  %*% X_std
   # compare with cor(X)
+  print("ok 'corX'")
   
-  return(covX,corX)
+  return()
 } #  function closure
 
 
-rm(corX,covX); pcaF(X,wflag="random")
-rm(corX,covX); pcaF(X,wflag="uniform")
+pcaF(X,wflag="random")
+#rm(corX,covX)
+pcaF(X,wflag="uniform")
 
 #X_cov <- cov(X)
 

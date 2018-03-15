@@ -110,9 +110,10 @@ pcaF <- function(X,wflag,wparam,...) {
   print("ok 'covX'")
   
   # standardized X matrix
-  for (cc in 1:ncol(X)) {
-    X_std[,cc] <- as.matrix(X_ctd[,cc]/sd(X_ctd[,cc]))
-  }
+  colsd <- c()
+  for (cc in 1:ncol(X)) { colsd <- c(colsd,1/sd(X[,cc])) } # build vector of variables' sd(X[,.])
+  X_std <- X_ctd %*% diag(colsd,ncol(X),ncol(X)) # build standardized observation matrix
+  # for (cc in 1:ncol(X)) { X_std[,cc] <- as.matrix(X_ctd[,cc]/sd(X[,cc])) } # build standardized observation matrix
   rownames(X_std) <- rownames(X)
   colnames(X_std) <- colnames(X)
   # correlation matrix (on X_std)
@@ -136,7 +137,7 @@ pcaF <- function(X,wflag,wparam,...) {
   }
   
   # save plot in pdf file
-  barplotfile = sprintf("Lab2/Report/screeplot_%s.pdf",wflag)
+  barplotfile = sprintf("Lab2/Report/screeplot_%s_%s.pdf",wflag,format(Sys.time(),"%Y%m%d-%H%M%S"))
   pdf(file = barplotfile)    # open pdf file
   plottitle = sprintf("Screeplot for %s observation weights",wflag)
   plot(seq(1:length(evals)),evals, 

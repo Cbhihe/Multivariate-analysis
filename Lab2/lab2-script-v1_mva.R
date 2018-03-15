@@ -7,6 +7,7 @@
 
 rm(list=ls(all=TRUE))
 library(MASS)    #  exec `install.packages("MASS")` to use 'fractions'
+#library(FactoMineR)
 #library("mice")
 #library("DMwR")
 #library("VIM")    # exec `install.packages("VIM")` in R shell first
@@ -94,7 +95,7 @@ pcaF <- function(X,wflag,wparam,...) {
   
   N <- diag(W/sum(W),nrow(X),nrow(X))  # build diagonal matrix with normalized weights
   rm(W)
-  try(if(abs(sum(diag(N))-1) >= 10**-6) 
+  try(if(abs(sum(diag(N))-1) >= 1e-4) 
     stop("WARNING: invalid normalization of individual weights"))  # check that matrix trace = 1
   
   # centroid G of individuals.
@@ -137,8 +138,8 @@ pcaF <- function(X,wflag,wparam,...) {
   }
   
   # save plot in pdf file
-  barplotfile = sprintf("Lab2/Report/screeplot_%s_%s.pdf",wflag,format(Sys.time(),"%Y%m%d-%H%M%S"))
-  pdf(file = barplotfile)    # open pdf file
+  plotfile = sprintf("Lab2/Report/screeplot_%s_%s.pdf",wflag,format(Sys.time(),"%Y%m%d-%H%M%S"))
+  pdf(file = plotfile)    # open pdf file
   plottitle = sprintf("Screeplot for %s observation weights",wflag)
   plot(seq(1:length(evals)),evals, 
        pch=15, 
@@ -159,14 +160,56 @@ pcaF <- function(X,wflag,wparam,...) {
   grid()
   dev.off()    # close pdf file
 
+  # projections of centered individuals in the EV's direction, psi (n=47 by p=9 matrix)
+  cat("Individuals' projections on principal directions:","\n")
+  (psi <- X_ctd %*% evecs)
+  colnames(psi) <- (colnames(X))
+  # 1st check that roundoff is contained (compare with eigenvalues, evals).
+  try(if(sum(abs(diag(round(t(psi)%*%N%*%psi,3))-evals)) >= 1e-4) 
+    stop("WARNING: invalid roundoff error in eigenvector and/or eigenvalue computations."))   
     return()
-} #  function closure
+
+  # 2nd check that roundoff is contained
+  # toto <- 0; for (ii in (1:ncol(X))) toto=toto+var(X[,ii])
+  # (1-sum(evals)/toto)
+
+  # 3rd check that roundoff is contained
+  # cat ("Eigenvalues (eigen):\n",evals,"\n")
+  # cat ("Eigenvalues (var(psi columns)): ")
+  # for (ii in (1:ncol(X))) {cat(var(psi[,ii])," ")}
+  
+  # projections of centered individuals in the EV's direction
+  plotfile = sprintf("Lab2/Report/individual projections_%s_%s.pdf",wflag,format(Sys.time(),"%Y%m%d-%H%M%S"))
+  plottitle=sprintf("Individual loci in 1st factorial plane")
+  plotsubtitle= sprintf("(%s observation weights.)",wflag)
+  pdf(file = plotfile)    # open pdf file
+  plot(psi[,1],psi[,2],
+       pch=18, 
+       cex=1,
+       col="black",
+       type="p",
+       main=plottitle,
+       sub=plotsubtitle,
+       xlab="PC_1",
+       ylab="PC_2")
+  text(x=psi[,1], y=psi[,2], 
+       labels=as.character(rownames(X)),
+       cex=0.75,
+       pos=3,
+       col="black")  # add labels)
+  grid()
+  dev.off()    # close pdf file
+
+  
+    
+  } #  function closure
+  
 
 
 pcaF(X,wflag="random")
 
 pcaF(X,wflag="uniform")
 
-weights <- rep(1:10,5); length(wparam) <- nrow(X) 
+weights <- rep(1:10,5); length(weights) <- nrow(X) 
 pcaF(X,wflag="arbitrary",wparam=weights)
 

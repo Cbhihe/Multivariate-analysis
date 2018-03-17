@@ -50,18 +50,21 @@ dim(russet_imp_data)  # list nbr of observations followed by nbr of vars
 
 # initialize matrices
 X <- russet_imp_data ; rm(russet_imp_data)
-Xdemo <- X$demo
-attach(X)
-X <- X[,-9]
+
 
 #############################################
 # function for PCA analysis
 #############################################
 
-pcaF <- function(X,wflag,wparam,...) {
+pcaF <- function(X,datestamp,wflag,wparam,...) {
+  #attach(X)
+  Xdemo <- X$demo
+  cat("X$demo:",Xdemo)
+  X <- X[,-9]
+
   X_ctd <- matrix(0,nrow(X),ncol(X))
   X_std <- X_ctd
-
+  
   # "wflag" is in c("random","uniform","arbitrary")
   # if arg "wflag" is:
   #   <> "random"
@@ -73,20 +76,20 @@ pcaF <- function(X,wflag,wparam,...) {
   #   <> "arbitrary"
   #      weight distribution is given by vector "wparam"
   #      e.g. c(1,2,3,4,5,6,123), normalized to 1.
-
+  
   if (wflag == "random") { 
     print("ok 'random'")
     # generate random weight for each individual
     W <- runif(nrow(X))
-     
+    
   } else if (wflag == "uniform") {
     print("ok 'uniform'")
     # generate uniform weights distribution for each individual
     W=rep(1,nrow(X))
-
+    
   } else if (wflag == "arbitrary") {
     try(if(length(wparam) != nrow(X) | !is.numeric(wparam)) 
-        stop("WARNING: invalid individual weights given to function 'pcaF'. 
+      stop("WARNING: invalid individual weights given to function 'pcaF'. 
         Program abort."))
     print("ok 'arbitrary'")
     W <- wparam
@@ -103,7 +106,7 @@ pcaF <- function(X,wflag,wparam,...) {
   
   # centroid G of individuals.
   X_wgt <-  N %*% as.matrix(X)  # weighed observations
-  centroid <- apply(X_wgt, 2, sum)
+  centroid <- apply(X_wgt, 2, sum)  # use 'sum' because N is made of normalized ponderation factors
   rm(X_wgt)
   
   # centered X matrix
@@ -111,7 +114,7 @@ pcaF <- function(X,wflag,wparam,...) {
   colnames(X_ctd) <- colnames(X)
   # covariance matrix (on) X_ctd) 
   covX <- t(X_ctd) %*% N  %*% X_ctd
-  # compare with cov(X)
+  # compare with cov(X) or cov(X_ctd)  ###########################################################
   print("ok 'covX'")
   
   # standardized X matrix
@@ -125,16 +128,18 @@ pcaF <- function(X,wflag,wparam,...) {
   corX <- t(X_std) %*% N  %*% X_std
   # compare with cor(X)
   print("ok 'corX'")
-
+  
   evals <- eigen(corX)$values
-  cat("Eigenvalues: ",round(evals,4),"\n")
-  cat("Eigenvectors:","\n"); (evecs <- eigen(corX)$vectors)
-  cat("Rank of observation matrix: ",min(ncol(X),ceiling(sum(diag(corX)))),"\n")
+  cat("Eigenvalues (obs): ",round(evals,4),"\n")
+  evecs <- eigen(corX)$vectors
+  cat("Eigenvectors (obs):","\n",evecs)
+  cat("Rank of observation matrix: ",min(ncol(X),ceiling(sum(diag(corX)))),"\n\n")
   
   # screen eigenvalues -> ascertain nbr of significant dimensions
   #   -> cumulative variance explanatory power of principal directions 
   #     (evecs) associated with eigenvalues
   cum_exp_pow=matrix(0,length(evals)+1,1)
+  cat("Rank ","eval_power ", "eval_cumul_power\n") 
   for (ii in (1:length(evals))) {
     cum_exp_pow[ii+1] <- cum_exp_pow[ii] + 100*evals[ii]/sum(evals)
     cat(ii," ",round(100*evals[ii]/sum(evals),2)," ",round(cum_exp_pow[ii+1],2),"\n")
@@ -142,8 +147,8 @@ pcaF <- function(X,wflag,wparam,...) {
   }
   
   # save plot in pdf file
-  plotfile = sprintf("Lab2/Report/%s_eigenvals-screen_%s.pdf",
-                     format(Sys.time(),"%Y%m%d-%H%M%S"),
+  plotfile = sprintf("Lab2/Report/%s_screen-evals_%s.pdf",
+                     datestamp,
                      substr(wflag,1,4))
   pdf(file = plotfile)    # open pdf file
   plottitle = sprintf("PC explanatory power for %s observation weights",wflag)
@@ -156,8 +161,7 @@ pcaF <- function(X,wflag,wparam,...) {
        sub="(Red labels show cumulative variance explanatory power)",
        xlab="Index (sorted)",
        ylab="Eigenvalues"
-       #, log="y"
-       )
+  )
   text(x=1:length(evals), y=evals, 
        labels=as.character(round(cum_exp_pow[-1,1],2)),
        cex=0.75,
@@ -171,34 +175,36 @@ pcaF <- function(X,wflag,wparam,...) {
        col="red")
   #screeplot(prcomp(covX),npcs=min(ncol(X),length(evals)), type="l", log="y")
   grid()
-  dev.off()    # close pdf file
-
+  dev.off()    # close off pdf file socket
+  
+  
+  
   # projections of centered individuals in the EV's direction, psi (n=47 by p=9 matrix)
-  cat("Individuals' projections on principal directions:","\n")
   psi <- X_std %*% evecs
   colnames(psi) <- paste0("PC",1:ncol(psi))
+  cat("Individuals' projections on principal directions: ok","\n")
+  
   # 1st check that roundoff is contained (compare with eigenvalues, evals).
   #    remember: sum of eigenvalues = rank, p, of multivariate distribution
   #              = trace of cor matrix computed on standardized data in R^p
-  try(if(sum(abs(diag(t(psi)%*%N%*%psi) - evals)) >= 1e-3) 
+  try(if(sum(abs(diag(t(psi)%*%N%*%psi) - evals)) >= 1e-4) 
     stop("WARNING: invalid roundoff error in eigenvector and/or eigenvalue computations."))   
-    
-
+  
   # 2nd check that roundoff is contained
   # toto <- 0; for (ii in (1:ncol(X))) toto=toto+var(X[,ii])
   # (1-sum(evals)/toto)
-
+  
   # 3rd check that roundoff is contained
   # cat ("Eigenvalues (eigen):\n",evals,"\n")
   # cat ("Eigenvalues (var(psi columns)): ")
   # for (ii in (1:ncol(X))) {cat(var(psi[,ii])," ")}
   
-  # projections of centered individuals in the principal direction
+  # projections of centered individuals in the PC1-2 factorial plane
   demo_col=as.factor(Xdemo)
   levels(demo_col) <- c("Stable", "Unstable", "Dictatorship")
-
-  # plotfile = sprintf("Lab2/Report/%s_indiv-proj_%s.pdf",
-  #                    format(Sys.time(),"%Y%m%d-%H%M%S"),
+  
+  # plotfile = sprintf("Lab2/Report/%s_indiv-proj12_%s.pdf",
+  #                    datestamp,
   #                    substr(wflag,1,4))
   # pdf(file = plotfile)    # open pdf file
   # plot(psi[,1],psi[,2],
@@ -218,7 +224,7 @@ pcaF <- function(X,wflag,wparam,...) {
   # abline(h=0,v=0, col="gray")
   # grid()
   # dev.off()    # close pdf file
-
+  
   # In 1st PC plane, PC1 x PC2, compute represented fraction of individuals. 
   represented12 <- c()
   label12 <- c()
@@ -226,22 +232,23 @@ pcaF <- function(X,wflag,wparam,...) {
     represented12 <- c(represented12,
                        round(100*norm(as.matrix(psi[ii,1:2]), type="F")/norm(as.matrix(psi[ii,]),type="F"),2))
     label12 <- c(label12,
-                     paste0(rownames(psi)[ii],
-                            " (",
-                            round(100*norm(as.matrix(psi[ii,1:2]), type="F")/norm(as.matrix(psi[ii,]),type="F"),0),
-                            "%)")
-                     )
-    }
-  cat("Represented inertia of individuals in PC1-PC2 plane:\n");(label12) 
+                 paste0(rownames(psi)[ii],
+                        " (",
+                        round(100*norm(as.matrix(psi[ii,1:2]), type="F")/norm(as.matrix(psi[ii,]),type="F"),0),
+                        "%)")
+    )
+  }
+  cat("Represented inertia of individuals in PC1-PC2 plane:\n",label12) 
   
-  # plot in 1st PC plane, PC1 x PC2
-  plottitle=sprintf("Individual projection in first factorial plane (%s weights)",wflag)
+  # plot obs projection in PC1-2 factorial plane
+  cat("plot obs projections in PC1-2 factorial plane\n")
+  plottitle=sprintf("Individuals\' projection in PC1-2 factorial plane (%s weights)",wflag)
   plotdata <- data.frame(PC1=psi[,1],PC2=psi[,2],z=label12)
   plotfile <- sprintf("Lab2/Report/%s_indiv-proj12_%s.pdf",
-                     format(Sys.time(),"%Y%m%d-%H%M%S"),
-                     substr(wflag,1,4))
-
-  pdf(file = plotfile)    # open pdf file
+                      datestamp,
+                      substr(wflag,1,4))
+  cat("      - open pdf file\n")
+  #pdf(file = plotfile)
   ggplot(data = plotdata) + 
     theme_bw() +
     geom_vline(xintercept = 0, col="gray") +
@@ -255,8 +262,9 @@ pcaF <- function(X,wflag,wparam,...) {
     geom_point(aes(PC1,PC2,col = factor(demo_col)), size = 2) +
     scale_color_discrete(name = 'Political\nregime') +
     labs(title = plottitle)
-
-  dev.off()    # close pdf file
+  #dev.off()
+  ggsave(plotfile)
+  cat("      - close pdf file\n")
   
   # In 2nd PC plane, PC2 x PC3, compute represented fraction of individuals. 
   represented23 <- c()
@@ -265,22 +273,23 @@ pcaF <- function(X,wflag,wparam,...) {
     represented23 <- c(represented23,
                        round(100*norm(as.matrix(psi[ii,c(2,3)]), type="F")/norm(as.matrix(psi[ii,]),type="F"),2))
     label23 <- c(label23,
-                     paste0(rownames(psi)[ii],
-                            " (",
-                            round(100*norm(as.matrix(psi[ii,2:3]), type="F")/norm(as.matrix(psi[ii,]),type="F"),0),
-                            "%)")
+                 paste0(rownames(psi)[ii],
+                        " (",
+                        round(100*norm(as.matrix(psi[ii,2:3]), type="F")/norm(as.matrix(psi[ii,]),type="F"),0),
+                        "%)")
     )
   }
-  cat("Represented inertia of individuals in PC2-PC3 plane:\n");(label23) 
+  cat("Represented inertia of individuals in PC2-PC3 plane:\n",label23) 
   
   # plot in 2nd PC plane, PC2 x PC3
-  plottitle=sprintf("Individual projection in second factorial plane (%s weights)",wflag)
+  cat("plot obs projections in PC2-3 factorial plane\n")
+  plottitle=sprintf("Individuals\' projection in PC2-3 factorial plane (%s weights)",wflag)
   plotdata <- data.frame(PC2=psi[,2],PC3=psi[,3],z=label23)
   plotfile <- sprintf("Lab2/Report/%s_indiv-proj23_%s.pdf",
-                      format(Sys.time(),"%Y%m%d-%H%M%S"),
+                      datestamp,
                       substr(wflag,1,4))
-  
-  pdf(file = plotfile)    # open pdf file
+  cat("      - open pdf file\n")
+  #pdf(file = plotfile)
   ggplot(data = plotdata) + 
     theme_bw() +
     geom_vline(xintercept = 0, col="gray") +
@@ -294,8 +303,9 @@ pcaF <- function(X,wflag,wparam,...) {
     geom_point(aes(PC2,PC3,col = factor(demo_col)), size = 2) +
     scale_color_discrete(name = 'Political\nregime') +
     labs(title = plottitle)
-  
-  dev.off()    # close pdf file
+  ggsave(plotfile)
+  #dev.off()
+  cat("      - close pdf file\n")
   
   # In 3rd PC plane, PC1 x PC3, compute represented fraction of individuals. 
   represented13 <- c()
@@ -310,16 +320,17 @@ pcaF <- function(X,wflag,wparam,...) {
                         "%)")
     )
   }
-  cat("Represented inertia of individuals in PC1-PC3 plane:\n");(label13) 
+  cat("Represented inertia of individuals in PC1-PC3 plane:\n",label13) 
   
   # plot in 3rd PC plane, PC1 x PC3
-  plottitle=sprintf("Individual projection in third factorial plane (%s weights)",wflag)
+  cat("plot obs projections in PC1-3 factorial plane\n")
+  plottitle=sprintf("Individuals\' projection in PC1-3 factorial plane (%s weights)",wflag)
   plotdata <- data.frame(PC1=psi[,1],PC3=psi[,3],z=label13)
   plotfile <- sprintf("Lab2/Report/%s_indiv-proj13_%s.pdf",
-                      format(Sys.time(),"%Y%m%d-%H%M%S"),
+                      datestamp,
                       substr(wflag,1,4))
-  
-  pdf(file = plotfile)    # open pdf file
+  cat("      - open pdf file\n")
+  #pdf(file = plotfile)
   ggplot(data = plotdata) + 
     theme_bw() +
     geom_vline(xintercept = 0, col="gray") +
@@ -333,8 +344,9 @@ pcaF <- function(X,wflag,wparam,...) {
     geom_point(aes(PC1,PC3,col = factor(demo_col)), size = 2) +
     scale_color_discrete(name = 'Political\nregime') +
     labs(title = plottitle)
-  
-  dev.off()    # close pdf file
+  ggsave(plotfile)
+  #dev.off()
+  cat("      - close pdf file\n")
   
   # Write representativeness of individual projection in three factorial planes to disk
   representPC123 <- data.frame(cbind(Countries=rownames(X),
@@ -348,32 +360,32 @@ pcaF <- function(X,wflag,wparam,...) {
                                 "PC2-PC3 inertia (%)",
                                 "PC1-PC3 inertia (%)")
   filename <- sprintf("Lab2/Report/%s_indiv-proj-inert_%s.csv",
-                      format(Sys.time(),"%Y%m%d-%H%M%S"),
+                      datestamp,
                       substr(wflag,1,4))
   write.table(representPC123,file=filename,append=F,quote=F,
               sep=",",eol="\n",row.names=F,col.names=T)
   
   
   # projections of variables in the EV's direction, phi (n=47 by p=9 matrix)
-  cat("Individuals' projections on principal directions:","\n")
-  fooX <-sqrt(N) %*% as.matrix(X_std) %*% as.matrix(t(X_std)) %*% sqrt(N) 
-  evals_var <- round(eigen(fooX)$values,4)
-  cat("Eigenvalues (var): ",evals_var,"\n")
-  cat("Eigenvectors (var):","\n"); (evecs_var <- eigen(fooX)$vectors)
-  cat("Rank of observation matrix: ",min(nrow(X),ceiling(sum(diag(fooX)))),"\n")
-  (phi <- t(X_std) %*% evecs_var)
-  colnames(phi) <- (rownames(X))
+  cat("Variables' projections on principal directions:","\n")
+  fooX <- sqrt(N) %*% as.matrix(X_std) %*% as.matrix(t(X_std)) %*% sqrt(N) 
+  evals_var <- eigen(fooX)$values
+  cat("Eigenvalues (var): ",round(evals_var,4),"\n")
+  evecs_var <- eigen(fooX)$vectors
+  cat("Rank of observation matrix: ",min(nrow(X),ceiling(sum(diag(fooX)))),"\n\n")
+  phi <- as.matrix(t(X_std)) %*% evecs_var
+  colnames(phi) <- rownames(X)
   
-  plotfile = sprintf("Lab2/Report/variable_projection_%s_%s.pdf",wflag,format(Sys.time(),"%Y%m%d-%H%M%S"))
+  plotfile = sprintf("Lab2/Report/%s_var-proj12_%s.pdf",datestamp,wflag)
   pdf(file = plotfile)    # open pdf file
-  plottitle = sprintf("Variable projection in 1st factorial plane")
+  plottitle = sprintf("Variable projection in PC1-2 factorial plane (%s obs. weights)", wflag)
   plot(phi[,1],phi[,2],
        pch=15, 
        cex=1,
        col="blue",
        type="p",
        main=plottitle,
-       sub=sprintf("( for %s observation weights)", wflag),
+       # sub=sprintf("(%s obs. weights)", wflag),
        xlab="PC_1_var",
        ylab="PC_2_var")
   text(x=phi[,1], y=phi[,2], 
@@ -382,17 +394,17 @@ pcaF <- function(X,wflag,wparam,...) {
        pos=1,
        col="red")  # add labels
   grid()
-  dev.off()    # close pdf file    
+  dev.off()
   
   
-  } #  function closure
+} #  function closure
   
 
 
-pcaF(X,wflag="random")
+datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); pcaF(X,datestamp,wflag="random")
 
-pcaF(X,wflag="uniform")
+datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); pcaF(X,datestamp,wflag="uniform")
 
 weights <- rep(1:10,5); length(weights) <- nrow(X) 
-pcaF(X,wflag="arbitrary",wparam=weights)
+datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); pcaF(X,datestamp,wflag="arbitrary",wparam=weights)
 

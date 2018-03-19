@@ -5,6 +5,7 @@
 ##  Delivery: before 2018.03.19 - 23:55
 
 
+##  Script name: lab2-script-v2_mva.R
 rm(list=ls(all=TRUE))
 library(MASS)    #  exec `install.packages("MASS")` to use 'fractions'
 #library(FactoMineR)
@@ -77,7 +78,7 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   #      weight distribution is given by vector "wparam"
   #      e.g. c(1,2,3,4,5,6,123), normalized to 1.
   
-  if (wflag == "random") { 
+  if (wflag == "random") {
     print("ok 'random'")
     # generate random weight for each individual
     W <- runif(nrow(X))
@@ -113,8 +114,8 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   X_ctd <- as.matrix(X - matrix(rep(t(centroid), nrow(X)), ncol=ncol(X), byrow=T))
   colnames(X_ctd) <- colnames(X)
   # covariance matrix (on) X_ctd) 
-  covX <- t(X_ctd) %*% N  %*% X_ctd
-  # compare with cov(X) or cov(X_ctd)  ###########################################################
+  covX <- t(X_ctd) %*% N  %*% X_ctd   
+  # compare with cov(X) or cov(X_ctd)  # ##########################################################
   print("ok 'covX'")
   
   # standardized X matrix
@@ -126,14 +127,25 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   colnames(X_std) <- colnames(X)
   # correlation matrix (on X_std)
   corX <- t(X_std) %*% N  %*% X_std
-  # compare with cor(X)
+  # compare with cor(X)    # ##########################################################
   print("ok 'corX'")
+  
+  
+  # #########################################################
+  # Computation of X_std and corX2 with population correction
+  X_std2<-sweep(X_ctd,2,sqrt(diag(covX)),"/")
+  corX2 <- t(X_std2) %*% N  %*% X_std2
+  # The above 2 lines are not used in this work.
+  # They are meant as a check only.
+  # #########################################################
+  
   
   evals <- eigen(corX)$values
   cat("Eigenvalues (obs): ",round(evals,4),"\n")
   evecs <- eigen(corX)$vectors
-  cat("Eigenvectors (obs):","\n",evecs)
-  cat("Rank of observation matrix: ",min(ncol(X),ceiling(sum(diag(corX)))),"\n\n")
+  cat("Eigenvectors (obs):","\n");(evecs)
+  # sum(diag(corX)) # ##################################################
+  cat("Rank of observations' matrix, psi: ",min(ncol(X),ceiling(sum(diag(corX)))),"\n\n")
   
   # screen eigenvalues -> ascertain nbr of significant dimensions
   #   -> cumulative variance explanatory power of principal directions 
@@ -180,24 +192,16 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   
   
   # projections of centered individuals in the EV's direction, psi (n=47 by p=9 matrix)
-  psi <- X_std %*% evecs
+  psi <- X_std %*% evecs      # ############################################
   colnames(psi) <- paste0("PC",1:ncol(psi))
   cat("Individuals' projections on principal directions: ok","\n")
   
-  # 1st check that roundoff is contained (compare with eigenvalues, evals).
+  # check roundoff is contained (compare with eigenvalues, evals).
   #    remember: sum of eigenvalues = rank, p, of multivariate distribution
   #              = trace of cor matrix computed on standardized data in R^p
   try(if(sum(abs(diag(t(psi)%*%N%*%psi) - evals)) >= 1e-4) 
     stop("WARNING: invalid roundoff error in eigenvector and/or eigenvalue computations."))   
   
-  # 2nd check that roundoff is contained
-  # toto <- 0; for (ii in (1:ncol(X))) toto=toto+var(X[,ii])
-  # (1-sum(evals)/toto)
-  
-  # 3rd check that roundoff is contained
-  # cat ("Eigenvalues (eigen):\n",evals,"\n")
-  # cat ("Eigenvalues (var(psi columns)): ")
-  # for (ii in (1:ncol(X))) {cat(var(psi[,ii])," ")}
   
   # projections of centered individuals in the PC1-2 factorial plane
   demo_col=as.factor(Xdemo)
@@ -238,7 +242,7 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
                         "%)")
     )
   }
-  cat("Represented inertia of individuals in PC1-PC2 plane:\n",label12) 
+  cat("Represented inertia of individuals in PC1-PC2 plane:\n");(label12) 
   
   # plot obs projection in PC1-2 factorial plane
   cat("plot obs projections in PC1-2 factorial plane\n")
@@ -363,14 +367,18 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
               sep=",",eol="\n",row.names=F,col.names=T)
   
   
-  # projections of variables in the EV's direction, phi (n=47 by p=9 matrix)
+  
+  # ############################################################
+  # projections of variables in the EV's direction, phi (n=47 by p=8 matrix)
+  # ############################################################
+  
   cat("Variables' projections on principal directions","\n")
   fooX <- sqrt(N) %*% as.matrix(X_std) %*% as.matrix(t(X_std)) %*% sqrt(N) # n x n matrix, with n=47 
+  fooX2 <- sqrt(N) %*% as.matrix(X_std2) %*% as.matrix(t(X_std2)) %*% sqrt(N) # n x n matrix, with n=47 
   
   # compute eigenvalues in R^n
   evals_var <- eigen(fooX)$values
-  # check that vectors are normed, using norm(as.matrix(evecs_var[,x]),type="F") for 1<=x<=8
-  #norm(as.matrix(evecs_var[,5]),type="F")
+  evals_var2 <- eigen(fooX2)$values
   
   # display relative explanatory power of eigenvalues in R^n
   cum_exp_pow_evals_var=matrix(0,length(evals_var)+1,1)
@@ -384,61 +392,105 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
       }
   }
   cat(jj," ",round(100*evals_var[jj]/sum(evals_var),2)," ",round(cum_exp_pow_evals_var[jj+1],2),"\n")
+  cat("Rank of variables' matrix, phi: ",round(sum(evals_var),0),"\n\n")
+  #cat("Rank of observation matrix: ",min(nrow(X),ceiling(sum(diag(fooX)))),"\n\n")
   
   # compute eigenvalues in R^n
   evecs_var <- eigen(fooX)$vectors
-  cat("Rank of observation matrix: ",min(nrow(X),ceiling(sum(diag(fooX)))),"\n\n")
+  evecs_var2 <- eigen(fooX2)$vectors
+  # check that vectors are normed, using norm(as.matrix(evecs_var[,x]),type="F") for 1<=x<=8
+  #norm(as.matrix(evecs_var[,5]),type="F")  #  ok !
   
-  phi <- as.matrix(t(X_std)) %*% evecs_var[,1:8]
-  colnames(phi) <- rownames(X)
+  phi_direct <- as.matrix(t(X_std)) %*% sqrt(N) %*% evecs_var  #  result matrix is p x n
+  #  phi is p x n, however we're interested in at most the rank(phi)=p=8 first columns
+  # Check that all rows are normed according to Frobenius
+  #for (ii in 1:nrow(phi_direct)) {cat(ii," ",sqrt(sum(phi_direct[ii,]^2)),"\n")}  # ok !
+  colnames(phi_direct) <- paste0("PC",1:ncol(phi_direct))
   # row names are variables names
+  
+  # Check that cor(X_std,psi) = phi   # ok !
+  
+  phi_indirect <- sqrt(diag(evals)) %*%  evecs   #  result matrix is p x p
+  colnames(phi_indirect) <- paste0("PC",1:ncol(phi_indirect))
+  # row names are variables names
+  rownames(phi_indirect) <- colnames(X)
+  # Check that all rows are normed according to Frobenius
+  # for (ii in 1:nrow(phi_indirect)) {cat(ii," ",sqrt(sum(phi_indirect[ii,]^2)),"\n")} # mediocre !
+  # check that phi_direct[,1:8] - phi_indirect is reasonably close to [0] 8 x 8 matrix  
+  #  acceptable ! We opt to use phi_direct.
+  
+  # plot in 3rd PC plane, PC1 x PC3
   
   cat("plot variables' projection in PC1-2 factorial plane\n")
   plotfile <- sprintf("Lab2/Report/%s_var-proj12_%s.pdf",
                       datestamp,
                       substr(wflag,1,4))
-  plottitle = sprintf("Variables\' projection in PC1-2 factorial plane (%s obs. weights)", wflag)
+  plottitle = sprintf("Variables\' projection in PC1-2 factorial\nplane (%s observations' weights)", wflag)
   
+  # In 1st PC plane, PC1 x PC2, compute represented fraction of variables. 
+  label_phi_direct12 <- c()
+  for (ii in 1:nrow(phi_direct)) {
+    label_phi_direct12 <- c(label_phi_direct12,
+                 paste0(rownames(phi_direct)[ii],
+                        " (",
+                        round(100*norm(as.matrix(phi_direct[ii,1:2]),type="F")/
+                                norm(as.matrix(phi_direct[ii,]),type="F"),0),
+                        "%)")
+    )
+  }
   # pdf(file = plotfile)
-  # plot(phi[,1],phi[,2],
+  # plot(phi_direct[,1],phi_direct[,2],
   #      pch=15, 
   #      cex=1,
   #      col="blue",
   #      type="p",
   #      main=plottitle,
   #      # sub=sprintf("(%s obs. weights)", wflag),
-  #      xlab="PC_1_var",
-  #      ylab="PC_2_var")
-  # text(x=phi[,1], y=phi[,2], 
-  #      labels=rownames(phi),
+  #      xlab="PC1",
+  #      ylab="PC2")
+  # text(x=phi_direct[,1], y=phi_direct[,2], 
+  #      labels=label_phi_direct12,
   #      cex=0.75,
   #      pos=1,
   #      col="red")  # add labels
   # grid()
   # dev.off()
-  # plot in 3rd PC plane, PC1 x PC3
 
-  plotdata <- data.frame(PC1=phi[,1],PC2=phi[,2],z=rownames(phi))
-  ggplot(data = plotdata) + 
-    theme_bw() +
+  plotdata <- data.frame(PC1=phi_direct[,1],PC2=phi_direct[,2],z=label_phi_direct12)
+  varproj_plot <- ggplot(data = plotdata) + 
+    theme_bw()+
     geom_vline(xintercept = 0, col="gray") +
     geom_hline(yintercept = 0, col="gray") +
-    geom_text_repel(aes(PC1,PC2,label = z))+
-    # geom_text_repel(aes(PC1,PC2,label = z),
-    #                 size=3,
-    #                 point.padding = 0.5,
-    #                 box.padding = unit(0.55, "lines"),
-    #                 segment.size = 0.3,
-    #                 segment.color = 'grey') +
+    #geom_text_repel(aes(PC1,PC2,label = z))+
+    geom_text_repel(aes(PC1,PC2,label = z),
+                    size=3,
+                    point.padding = 0.5,
+                    box.padding = unit(0.55, "lines"),
+                    segment.size = 0.3,
+                    segment.color = 'grey') +
     geom_point(aes(PC1,PC2),col = "blue", size = 1) +
+    #geom_path(circ_data,aes(xc,yc), inherit.aes =F) +
+    #geom_point(aes(x_coord,y_coord),col = "black", size = 0.2) +
     geom_segment(data = plotdata, 
                  mapping = aes(x = 0, y = 0, xend = PC1, yend = PC2),
-                 color="green",
-                 arrow=arrow(length=unit(4,"mm")),
-                 alpha=0.80) +
-    labs(title = plottitle)
+                 color="blue",
+                 arrow=arrow(length=unit(2,"mm")))+
+    labs(title = plottitle)+
+    coord_fixed()
+  
+  # compute circle's cartesian coordinates
+  #theta <- as.vector(sweep(as.matrix(rep(1:200),200,byrow=T),2,pi/100,"*"))
+  theta <- seq(-pi, pi, length = 200)
+  circ_data <- data.frame(xc=cos(theta),yc=sin(theta))
+  varproj_plot + geom_path(aes(xc, yc), data = circ_data, col="grey70")
+  
   ggsave(plotfile)
 
+  # Compute the correlation of the variables with the significant PCs 
+  # significant PCs in R^n are given by:
+  
+  
+  
   
 } #  function closure
   
@@ -448,6 +500,7 @@ datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); pcaF(X,datestamp,wflag="random"
 
 datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); pcaF(X,datestamp,wflag="uniform")
 
-weights <- rep(1:10,5); length(weights) <- nrow(X) 
-datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); pcaF(X,datestamp,wflag="arbitrary",wparam=weights)
+# weights <- rep(1:10,5); length(weights) <- nrow(X) 
+obs_weights <- read.csv(file=sprintf("Lab2/Report/%s_arbitrary-wparam.csv","20180319-131250"))
+datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); pcaF(X,datestamp,wflag="arbitrary",wparam=obs_weights[,2])
 

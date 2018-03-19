@@ -247,7 +247,6 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   plotfile <- sprintf("Lab2/Report/%s_indiv-proj12_%s.pdf",
                       datestamp,
                       substr(wflag,1,4))
-  cat("      - open pdf file\n")
   #pdf(file = plotfile)
   ggplot(data = plotdata) + 
     theme_bw() +
@@ -264,7 +263,7 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
     labs(title = plottitle)
   #dev.off()
   ggsave(plotfile)
-  cat("      - close pdf file\n")
+
   
   # In 2nd PC plane, PC2 x PC3, compute represented fraction of individuals. 
   represented23 <- c()
@@ -288,7 +287,6 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   plotfile <- sprintf("Lab2/Report/%s_indiv-proj23_%s.pdf",
                       datestamp,
                       substr(wflag,1,4))
-  cat("      - open pdf file\n")
   #pdf(file = plotfile)
   ggplot(data = plotdata) + 
     theme_bw() +
@@ -305,7 +303,7 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
     labs(title = plottitle)
   ggsave(plotfile)
   #dev.off()
-  cat("      - close pdf file\n")
+
   
   # In 3rd PC plane, PC1 x PC3, compute represented fraction of individuals. 
   represented13 <- c()
@@ -329,7 +327,6 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   plotfile <- sprintf("Lab2/Report/%s_indiv-proj13_%s.pdf",
                       datestamp,
                       substr(wflag,1,4))
-  cat("      - open pdf file\n")
   #pdf(file = plotfile)
   ggplot(data = plotdata) + 
     theme_bw() +
@@ -346,7 +343,7 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
     labs(title = plottitle)
   ggsave(plotfile)
   #dev.off()
-  cat("      - close pdf file\n")
+
   
   # Write representativeness of individual projection in three factorial planes to disk
   representPC123 <- data.frame(cbind(Countries=rownames(X),
@@ -367,35 +364,81 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   
   
   # projections of variables in the EV's direction, phi (n=47 by p=9 matrix)
-  cat("Variables' projections on principal directions:","\n")
-  fooX <- sqrt(N) %*% as.matrix(X_std) %*% as.matrix(t(X_std)) %*% sqrt(N) 
+  cat("Variables' projections on principal directions","\n")
+  fooX <- sqrt(N) %*% as.matrix(X_std) %*% as.matrix(t(X_std)) %*% sqrt(N) # n x n matrix, with n=47 
+  
+  # compute eigenvalues in R^n
   evals_var <- eigen(fooX)$values
-  cat("Eigenvalues (var): ",round(evals_var,4),"\n")
+  # check that vectors are normed, using norm(as.matrix(evecs_var[,x]),type="F") for 1<=x<=8
+  #norm(as.matrix(evecs_var[,5]),type="F")
+  
+  # display relative explanatory power of eigenvalues in R^n
+  cum_exp_pow_evals_var=matrix(0,length(evals_var)+1,1)
+  cat("Rank ","eval_var_power (%) ", "eval_var_cumul_power (%)\n") 
+  for (ii in (1:length(evals_var))) {
+    cum_exp_pow_evals_var[ii+1] <- cum_exp_pow_evals_var[ii] + 100*evals_var[ii]/sum(evals_var)
+    #cum_varexp <- c(cum_varexp,100*(cum_varexp+evals[ii]/sum(evals))) 
+    if (round(cum_exp_pow_evals_var[ii+1],1) < 100 ) {
+      cat(ii," ",round(100*evals_var[ii]/sum(evals_var),2)," ",round(cum_exp_pow_evals_var[ii+1],2),"\n")
+      jj=ii+1 # last index to display
+      }
+  }
+  cat(jj," ",round(100*evals_var[jj]/sum(evals_var),2)," ",round(cum_exp_pow_evals_var[jj+1],2),"\n")
+  
+  # compute eigenvalues in R^n
   evecs_var <- eigen(fooX)$vectors
   cat("Rank of observation matrix: ",min(nrow(X),ceiling(sum(diag(fooX)))),"\n\n")
-  phi <- as.matrix(t(X_std)) %*% evecs_var
+  
+  phi <- as.matrix(t(X_std)) %*% evecs_var[,1:8]
   colnames(phi) <- rownames(X)
+  # row names are variables names
   
-  plotfile = sprintf("Lab2/Report/%s_var-proj12_%s.pdf",datestamp,wflag)
-  pdf(file = plotfile)    # open pdf file
-  plottitle = sprintf("Variable projection in PC1-2 factorial plane (%s obs. weights)", wflag)
-  plot(phi[,1],phi[,2],
-       pch=15, 
-       cex=1,
-       col="blue",
-       type="p",
-       main=plottitle,
-       # sub=sprintf("(%s obs. weights)", wflag),
-       xlab="PC_1_var",
-       ylab="PC_2_var")
-  text(x=phi[,1], y=phi[,2], 
-       labels=rownames(phi),
-       cex=0.75,
-       pos=1,
-       col="red")  # add labels
-  grid()
-  dev.off()
+  cat("plot variables' projection in PC1-2 factorial plane\n")
+  plotfile <- sprintf("Lab2/Report/%s_var-proj12_%s.pdf",
+                      datestamp,
+                      substr(wflag,1,4))
+  plottitle = sprintf("Variables\' projection in PC1-2 factorial plane (%s obs. weights)", wflag)
   
+  # pdf(file = plotfile)
+  # plot(phi[,1],phi[,2],
+  #      pch=15, 
+  #      cex=1,
+  #      col="blue",
+  #      type="p",
+  #      main=plottitle,
+  #      # sub=sprintf("(%s obs. weights)", wflag),
+  #      xlab="PC_1_var",
+  #      ylab="PC_2_var")
+  # text(x=phi[,1], y=phi[,2], 
+  #      labels=rownames(phi),
+  #      cex=0.75,
+  #      pos=1,
+  #      col="red")  # add labels
+  # grid()
+  # dev.off()
+  # plot in 3rd PC plane, PC1 x PC3
+
+  plotdata <- data.frame(PC1=phi[,1],PC2=phi[,2],z=rownames(phi))
+  ggplot(data = plotdata) + 
+    theme_bw() +
+    geom_vline(xintercept = 0, col="gray") +
+    geom_hline(yintercept = 0, col="gray") +
+    geom_text_repel(aes(PC1,PC2,label = z))+
+    # geom_text_repel(aes(PC1,PC2,label = z),
+    #                 size=3,
+    #                 point.padding = 0.5,
+    #                 box.padding = unit(0.55, "lines"),
+    #                 segment.size = 0.3,
+    #                 segment.color = 'grey') +
+    geom_point(aes(PC1,PC2),col = "blue", size = 1) +
+    geom_segment(data = plotdata, 
+                 mapping = aes(x = 0, y = 0, xend = PC1, yend = PC2),
+                 color="green",
+                 arrow=arrow(length=unit(4,"mm")),
+                 alpha=0.80) +
+    labs(title = plottitle)
+  ggsave(plotfile)
+
   
 } #  function closure
   

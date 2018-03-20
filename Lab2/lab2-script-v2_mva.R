@@ -410,6 +410,9 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   
   # Check that cor(X_std,psi) = phi   # ok !
   
+  # write 'phi_direct' to disk for obs ponderation comparison
+  write.csv(phi_direct, file=sprintf("Lab2/Report/%s_phi_direct_%s.csv",datestamp, substr(wflag,1,4)))
+  
   phi_indirect <- sqrt(diag(evals)) %*%  evecs   #  result matrix is p x p
   colnames(phi_indirect) <- paste0("PC",1:ncol(phi_indirect))
   # row names are variables names
@@ -419,8 +422,14 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   # check that phi_direct[,1:8] - phi_indirect is reasonably close to [0] 8 x 8 matrix  
   #  acceptable ! We opt to use phi_direct.
   
-  # plot in 3rd PC plane, PC1 x PC3
   
+  # compute unit radius circle's cartesian coordinates
+  #theta <- as.vector(sweep(as.matrix(rep(1:200),200,byrow=T),2,pi/100,"*"))
+  theta <- seq(-pi, pi, length = 200)
+  circ_data <- data.frame(xc=cos(theta),yc=sin(theta))
+  
+  
+  # plot in 1st PC plane, PC1 x PC2
   cat("plot variables' projection in PC1-2 factorial plane\n")
   plotfile <- sprintf("Lab2/Report/%s_var-proj12_%s.pdf",
                       datestamp,
@@ -477,30 +486,143 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
                  arrow=arrow(length=unit(2,"mm")))+
     labs(title = plottitle)+
     coord_fixed()
-  
-  # compute circle's cartesian coordinates
-  #theta <- as.vector(sweep(as.matrix(rep(1:200),200,byrow=T),2,pi/100,"*"))
-  theta <- seq(-pi, pi, length = 200)
-  circ_data <- data.frame(xc=cos(theta),yc=sin(theta))
   varproj_plot + geom_path(aes(xc, yc), data = circ_data, col="grey70")
   
   ggsave(plotfile)
 
+  
+  # plot in 2nd PC plane, PC2 x PC3
+  cat("Plot variables' projection in PC2-3 factorial plane\n")
+  plotfile <- sprintf("Lab2/Report/%s_var-proj23_%s.pdf",
+                      datestamp,
+                      substr(wflag,1,4))
+  plottitle = sprintf("Variables\' projection in PC2-3 factorial\nplane (%s observations' weights)", wflag)
+  
+  # In 2nd PC plane, PC2 x PC3, compute represented fraction of variables. 
+  label_phi_direct23 <- c()
+  for (ii in 1:nrow(phi_direct)) {
+    label_phi_direct23 <- c(label_phi_direct23,
+                            paste0(rownames(phi_direct)[ii],
+                                   " (",
+                                   round(100*norm(as.matrix(phi_direct[ii,2:3]),type="F")/
+                                           norm(as.matrix(phi_direct[ii,]),type="F"),0),
+                                   "%)")
+    )
+  }
+  
+  plotdata <- data.frame(PC2=phi_direct[,2],PC3=phi_direct[,3],z=label_phi_direct23)
+  varproj_plot <- ggplot(data = plotdata) + 
+    theme_bw()+
+    geom_vline(xintercept = 0, col="gray") +
+    geom_hline(yintercept = 0, col="gray") +
+    geom_text_repel(aes(PC2,PC3,label = z),
+                    size=3,
+                    point.padding = 0.5,
+                    box.padding = unit(0.55, "lines"),
+                    segment.size = 0.3,
+                    segment.color = 'grey') +
+    geom_point(aes(PC2,PC3),col = "blue", size = 1) +
+    #geom_path(circ_data,aes(xc,yc), inherit.aes =F) +
+    #geom_point(aes(x_coord,y_coord),col = "black", size = 0.2) +
+    geom_segment(data = plotdata, 
+                 mapping = aes(x = 0, y = 0, xend = PC2, yend = PC3),
+                 color="blue",
+                 arrow=arrow(length=unit(2,"mm")))+
+    labs(title = plottitle)+
+    coord_fixed()
+  
+  varproj_plot + geom_path(aes(xc, yc), data = circ_data, col="grey70")
+  
+  ggsave(plotfile)
+  
+  
+  
+  # plot in 3rd PC plane, PC1 x PC3
+  cat("Plot variables' projection in PC1-3 factorial plane\n")
+  plotfile <- sprintf("Lab2/Report/%s_var-proj13_%s.pdf",
+                      datestamp,
+                      substr(wflag,1,4))
+  plottitle = sprintf("Variables\' projection in PC1-3 factorial\nplane (%s observations' weights)", wflag)
+  
+  # In 3rd PC plane, PC1 x PC3, compute represented fraction of variables. 
+  label_phi_direct13 <- c()
+  for (ii in 1:nrow(phi_direct)) {
+    label_phi_direct13 <- c(label_phi_direct13,
+                            paste0(rownames(phi_direct)[ii],
+                                   " (",
+                                   round(100*norm(as.matrix(phi_direct[ii,c(1,3)]),type="F")/
+                                           norm(as.matrix(phi_direct[ii,]),type="F"),0),
+                                   "%)")
+    )
+  }
+  
+  plotdata <- data.frame(PC1=phi_direct[,1],PC3=phi_direct[,3],z=label_phi_direct13)
+  varproj_plot <- ggplot(data = plotdata) + 
+    theme_bw()+
+    geom_vline(xintercept = 0, col="gray") +
+    geom_hline(yintercept = 0, col="gray") +
+    geom_text_repel(aes(PC1,PC3,label = z),
+                    size=3,
+                    point.padding = 0.5,
+                    box.padding = unit(0.55, "lines"),
+                    segment.size = 0.3,
+                    segment.color = 'grey') +
+    geom_point(aes(PC1,PC3),col = "blue", size = 1) +
+    #geom_path(circ_data,aes(xc,yc), inherit.aes =F) +
+    #geom_point(aes(x_coord,y_coord),col = "black", size = 0.2) +
+    geom_segment(data = plotdata, 
+                 mapping = aes(x = 0, y = 0, xend = PC1, yend = PC3),
+                 color="blue",
+                 arrow=arrow(length=unit(2,"mm")))+
+    labs(title = plottitle)+
+    coord_fixed()
+  
+  varproj_plot + geom_path(aes(xc, yc), data = circ_data, col="grey70")
+  
+  ggsave(plotfile)
+  
+  
+  
   # Compute the correlation of the variables with the significant PCs 
   # significant PCs in R^n are given by:
+  # First, establish which are the significant component. Use Kaiser rule:
+  mean_evals_var=mean(evals_var[1:ceiling(round(sum(evals_var),2))])
+  significant=0
+  for (kk in 1:round(sum(evals_var),0)) {
+    if (evals_var[kk] >= mean_evals_var){
+      significant =significant+1
+      cat("eigenvalue ",kk,": ",round(evals_var[kk],2),"\n")
+    }
+  }
+  cat("There are ",significant," significant PCs.\n\n")
   
-  
+  phi_direct[,1:significant]  # 
   
   
 } #  function closure
   
 
+datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); 
+pcaF(X,datestamp,wflag="uniform")
+#pcaF(X,datestamp,wflag="random")
 
-datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); pcaF(X,datestamp,wflag="random")
+# toy arbitrary example:
+#weights <- rep(1:10,5); length(weights) <- nrow(X) 
+# Cuba-centered PCA, with Cuba's weight set to 0
+obs_weights <- read.csv(file=sprintf("Data/%s_arbitrary-wparam.csv","20180319-131250"))
+pcaF(X,datestamp,wflag="arbitrary",wparam=obs_weights[,2])
 
-datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); pcaF(X,datestamp,wflag="uniform")
 
-# weights <- rep(1:10,5); length(weights) <- nrow(X) 
-obs_weights <- read.csv(file=sprintf("Lab2/Report/%s_arbitrary-wparam.csv","20180319-131250"))
-datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); pcaF(X,datestamp,wflag="arbitrary",wparam=obs_weights[,2])
+# After having performed Cuba-centered PCA (Cuba being considered an outlier),
+# compute correlations of the obtained significant components phi_direct_arbi 
+# with phi_direct_unif
+# datestamp <- "201803..."
+phi_direct_arbi <- read.csv(file=sprintf("Lab2/Report/%s_phi_direct_arbi.csv",datestamp)) # Cuba-centered
+rownames(phi_direct_arbi) <- phi_direct_arbi[,1]; phi_direct_arbi <- phi_direct_arbi[,-1]
+
+phi_direct_unif <- read.csv(file=sprintf("Lab2/Report/%s_phi_direct_unif.csv",datestamp)) # uniform weights
+rownames(phi_direct_unif) <- phi_direct_unif[,1]; phi_direct_unif <- phi_direct_unif[,-1]
+
+# 3 significant components for uniform and arbitrary ponderations (Cuba weight set to 0)
+diag(cor(phi_direct_arbi[,1:3],phi_direct_unif[,1:3]))
 

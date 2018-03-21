@@ -143,7 +143,7 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   evals <- eigen(corX)$values
   cat("Eigenvalues (obs): ",round(evals,4),"\n")
   evecs <- eigen(corX)$vectors
-  cat("Eigenvectors (obs):","\n");(evecs)
+  cat("Eigenvectors (obs):","\n"); evecs
   # sum(diag(corX)) # ##################################################
   cat("Rank of observations' matrix, psi: ",min(ncol(X),ceiling(sum(diag(corX)))),"\n\n")
   
@@ -191,10 +191,13 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   
   
   
-  # projections of centered individuals in the EV's direction, psi (n=47 by p=9 matrix)
-  psi <- X_std %*% evecs      # ############################################
+  # psi:  projections of standardized individuals in the EV's direction, (n=47 by p=9 matrix)
+  psi <- X_std %*% evecs
   colnames(psi) <- paste0("PC",1:ncol(psi))
-  cat("Individuals' projections on principal directions: ok","\n")
+  #cat("Individuals' projections on principal directions: ok","\n")
+  
+  # write 'psi' to disk for obs ponderation comparison
+  write.csv(psi, file=sprintf("Lab2/Report/%s_psi_%s.csv",datestamp, substr(wflag,1,4)))
   
   # check roundoff is contained (compare with eigenvalues, evals).
   #    remember: sum of eigenvalues = rank, p, of multivariate distribution
@@ -411,16 +414,17 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   # Check that cor(X_std,psi) = phi   # ok !
   
   # write 'phi_direct' to disk for obs ponderation comparison
-  write.csv(phi_direct, file=sprintf("Lab2/Report/%s_phi_direct_%s.csv",datestamp, substr(wflag,1,4)))
+  #write.csv(phi_direct, file=sprintf("Lab2/Report/%s_phi_direct_%s.csv",datestamp, substr(wflag,1,4)))
   
   phi_indirect <- sqrt(diag(evals)) %*%  evecs   #  result matrix is p x p
   colnames(phi_indirect) <- paste0("PC",1:ncol(phi_indirect))
   # row names are variables names
   rownames(phi_indirect) <- colnames(X)
   # Check that all rows are normed according to Frobenius
-  # for (ii in 1:nrow(phi_indirect)) {cat(ii," ",sqrt(sum(phi_indirect[ii,]^2)),"\n")} # mediocre !
+  # for (ii in 1:nrow(phi_indirect)) {cat(ii," ",sqrt(sum(phi_indirect[ii,]^2)),"\n")} 
+  #   -> mediocre !
   # check that phi_direct[,1:8] - phi_indirect is reasonably close to [0] 8 x 8 matrix  
-  #  acceptable ! We opt to use phi_direct.
+  #   -> acceptable !   but we choose to use phi_direct.
   
   
   # compute unit radius circle's cartesian coordinates
@@ -440,13 +444,12 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   label_phi_direct12 <- c()
   for (ii in 1:nrow(phi_direct)) {
     label_phi_direct12 <- c(label_phi_direct12,
-                 paste0(rownames(phi_direct)[ii],
-                        " (",
-                        round(100*norm(as.matrix(phi_direct[ii,1:2]),type="F")/
-                                norm(as.matrix(phi_direct[ii,]),type="F"),0),
-                        "%)")
-    )
-  }
+                            paste0(rownames(phi_direct)[ii],
+                                   " (",
+                                   round(100*norm(as.matrix(phi_direct[ii,1:2]),type="F")/
+                                           norm(as.matrix(phi_direct[ii,]),type="F"),0),
+                                   "%)")
+                            )}
   # pdf(file = plotfile)
   # plot(phi_direct[,1],phi_direct[,2],
   #      pch=15, 
@@ -582,8 +585,10 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   ggsave(plotfile)
   
   
-  
+  # #####################################################
   # Compute the correlation of the variables with the significant PCs 
+  # #####################################################
+
   # significant PCs in R^n are given by:
   # First, establish which are the significant component. Use Kaiser rule:
   mean_evals_var=mean(evals_var[1:ceiling(round(sum(evals_var),2))])
@@ -614,15 +619,15 @@ pcaF(X,datestamp,wflag="arbitrary",wparam=obs_weights[,2])
 
 
 # After having performed Cuba-centered PCA (Cuba being considered an outlier),
-# compute correlations of the obtained significant components phi_direct_arbi 
-# with phi_direct_unif
+# compute correlations of the obtained significant components psi_arbi 
+# with psi_unif
 # datestamp <- "201803..."
-phi_direct_arbi <- read.csv(file=sprintf("Lab2/Report/%s_phi_direct_arbi.csv",datestamp)) # Cuba-centered
-rownames(phi_direct_arbi) <- phi_direct_arbi[,1]; phi_direct_arbi <- phi_direct_arbi[,-1]
+psi_arbi <- read.csv(file=sprintf("Lab2/Report/%s_psi_arbi.csv",datestamp)) # Cuba-centered
+rownames(psi_arbi) <- psi_arbi[,1]; psi_arbi <- psi_arbi[,-1]
 
-phi_direct_unif <- read.csv(file=sprintf("Lab2/Report/%s_phi_direct_unif.csv",datestamp)) # uniform weights
-rownames(phi_direct_unif) <- phi_direct_unif[,1]; phi_direct_unif <- phi_direct_unif[,-1]
+psi_unif <- read.csv(file=sprintf("Lab2/Report/%s_psi_unif.csv",datestamp)) # uniform weights
+rownames(psi_unif) <- psi_unif[,1]; psi_unif <- psi_unif[,-1]
 
 # 3 significant components for uniform and arbitrary ponderations (Cuba weight set to 0)
-diag(cor(phi_direct_arbi[,1:3],phi_direct_unif[,1:3]))
+diag(cor(psi_arbi[,1:3],psi_unif[,1:3]))
 

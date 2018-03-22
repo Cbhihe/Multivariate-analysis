@@ -59,10 +59,11 @@ X <- russet_imp_data ; rm(russet_imp_data)
 
 pcaF <- function(X,datestamp,wflag,wparam,...) {
   #attach(X)
-  Xdemo <- X$demo
+  Xdemo <- X$demo   # save categorical variable in object 'Xdemo' 
   cat("X$demo:",Xdemo)
-  X <- X[,-9]
+  X <- X[,-9]       # get rid of categorical variable in main data set
 
+  # initialize matrices:
   X_ctd <- matrix(0,nrow(X),ncol(X))
   X_std <- X_ctd
   
@@ -76,7 +77,8 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   #      arg "wparam" is ignored 
   #   <> "arbitrary"
   #      weight distribution is given by vector "wparam"
-  #      e.g. c(1,2,3,4,5,6,123), normalized to 1.
+  #      e.g. wparam <- c(1,2,3,476,34, ...,5,6,123), with length(wparam) <- 47
+  #      and individuals' ponderation normalized to 1.
   
   if (wflag == "random") {
     print("ok 'random'")
@@ -196,7 +198,7 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   colnames(psi) <- paste0("PC",1:ncol(psi))
   #cat("Individuals' projections on principal directions: ok","\n")
   
-  # write 'psi' to disk for obs ponderation comparison
+  # save 'psi' to disk for later comparison between varying obs ponderations
   write.csv(psi, file=sprintf("Lab2/Report/%s_psi_%s.csv",datestamp, substr(wflag,1,4)))
   
   # check roundoff is contained (compare with eigenvalues, evals).
@@ -414,7 +416,7 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   # Check that cor(X_std,psi) = phi   # ok !
   
   # write 'phi_direct' to disk for obs ponderation comparison
-  #write.csv(phi_direct, file=sprintf("Lab2/Report/%s_phi_direct_%s.csv",datestamp, substr(wflag,1,4)))
+  write.csv(phi_direct, file=sprintf("Lab2/Report/%s_phi_direct_%s.csv",datestamp, substr(wflag,1,4)))
   
   phi_indirect <- sqrt(diag(evals)) %*%  evecs   #  result matrix is p x p
   colnames(phi_indirect) <- paste0("PC",1:ncol(phi_indirect))
@@ -615,16 +617,18 @@ pcaF(X,datestamp,wflag="uniform")
 #weights <- rep(1:10,5); length(weights) <- nrow(X) 
 # Cuba-centered PCA, with Cuba's weight set to 0
 obs_weights <- read.csv(file=sprintf("Data/%s_arbitrary-wparam.csv","20180319-131250"))
+wparam <- obs_weights[,2]
 pcaF(X,datestamp,wflag="arbitrary",wparam=obs_weights[,2])
 
 
 # After having performed Cuba-centered PCA (Cuba being considered an outlier),
 # compute correlations of the obtained significant components psi_arbi 
 # with psi_unif
-# datestamp <- "201803..."
+datestamp <- "201803-085020"
 psi_arbi <- read.csv(file=sprintf("Lab2/Report/%s_psi_arbi.csv",datestamp)) # Cuba-centered
 rownames(psi_arbi) <- psi_arbi[,1]; psi_arbi <- psi_arbi[,-1]
 
+datestamp <- "20180320-085019"
 psi_unif <- read.csv(file=sprintf("Lab2/Report/%s_psi_unif.csv",datestamp)) # uniform weights
 rownames(psi_unif) <- psi_unif[,1]; psi_unif <- psi_unif[,-1]
 

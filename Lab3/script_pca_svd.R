@@ -1,10 +1,9 @@
-##  MIRI:     MVA
-##  LAB #3:   Beyond PCA
+##  "Beyond PCA"
 ##  Authors:  Cedric Bhihe <cedric.bhihe@gmail.com>
 ##            Santi Calvo <s.calvo93@gmail.com>  
-##  Delivery: before 2018.04.02 - 23:55
+##  Date: 2018.03.31
 
-##  Script name: lab3-script_mva.R
+##  Script name: script_pca_svd.R
 
 rm(list=ls(all=TRUE))
 
@@ -86,8 +85,9 @@ for(dd in 1:ncol(X_std)) {
     lbd_old <- lbd_tmp
     ldg_tmp <- t(as.matrix(X_tmp)) %*% as.matrix(psi_tmp) # loadings
     ldg_tmp <- ldg_tmp / sqrt(sum(ldg_tmp * ldg_tmp))     # normalize loadings to 1
-    # psi_tmp <- sqrt(N) %*% as.matrix(X_tmp) %*% as.matrix(ldg_tmp)    # calculate new scores
+    #psi_tmp <- as.matrix(sqrt(N)) %*% as.matrix(X_tmp) %*% as.matrix(ldg_tmp)    # calculate new scores
     psi_tmp <- as.matrix(X_tmp) %*% as.matrix(ldg_tmp)    # calculate new scores
+    #lbd_tmp <- t(psi_tmp) %*% psi_tmp           # calculate new eigenvalue
     lbd_tmp <- t(psi_tmp) %*% psi_tmp / nrow(X)           # calculate new eigenvalue
   }
   lbd <- rbind(lbd,lbd_tmp)
@@ -231,16 +231,63 @@ pcaX$ind$coord[,1:nd] <- pcaX_psi_rot
 dimdesc(pcaX,axes=1:nd,proba=0.5)
 
 #############################################
-# 6-7: Read PCA_quetaltecaen data and symmetrize the matrix
+# 6: Read PCA_quetaltecaen data
+# 7: Symmetrize the matrix
+# 8: Transform similarity matrix into dissimilarity matrix
 #############################################
 
-# express joint feeling between CCAA.
+rm(list=ls(all=TRUE))
+sim_qttc = read.csv("Data/PCA_quetaltecaen.csv",
+                     header = TRUE, 
+                     quote = "\"", 
+                     dec = ".",
+                     sep="\t", 
+                     encoding="UTF-8",
+                     check.names=TRUE
+                     )
+rownames(sim_qttc) <- sim_qttc[,1];  sim_qttc <- sim_qttc[,-1]
+dim(qttc)
+
+# make data table symmetric, preserve diagonal values, calculate dissimilarities
+# max. similarity = 10
+dis_qttc <- 10 - 0.5 * (sim_qttc + t(sim_qttc))
+
+# show dissimiarity self-perception
+cat(rownames(dis_qttc),"\n",diag(as.matrix(dis_qttcSYM)))
 
 
 #############################################
-#  8: Transform similarity matrix into dissimilarity matrix 
+ 
 #  9: Perform PCA upon dissimilarity matrix
 # 10: Plot the first two components
 #############################################
 
-# notice that max. similarity = 10
+dis_data <- cmdscale(dis_qttc, k=2, eig=T, add=T)
+
+# plot(dis_data[["points"]][,1], dis_data[["points"]][,2], 
+#      pch=15, 
+#      cex=1,
+#      col="blue",
+#      type="p",
+#      xlab = "PC1",ylab = "PC2", 
+#      asp = 1, axes = T,
+#      main = "Perceived distance between communities")
+# text(dis_data[["points"]][,1], dis_data[["points"]][,2], rownames(dis_data[["points"]]), cex = 0.6, col="red")
+
+plottitle = sprintf("Perceived distance between communities")
+plotdata <- data.frame(PC1=dis_data[["points"]][,1],PC2= dis_data[["points"]][,2],z=colname(dis_qttc))
+dis_plot <- ggplot(data = plotdata) + 
+  theme_bw()+
+  # geom_vline(xintercept = 0, col="gray") +
+  # geom_hline(yintercept = 0, col="gray") +
+  geom_text_repel(aes(PC1,PC2,label = z),
+                  size=4,
+                  point.padding = 0.5,
+                  box.padding = unit(0.55, "lines"),
+                  segment.size = 0.3,
+                  segment.color = 'grey') +
+  geom_point(aes(PC1,PC2),col = "blue", size = 1) +
+  labs(title = plottitle)+
+  coord_fixed()
+
+dis_plot

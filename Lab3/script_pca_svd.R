@@ -116,7 +116,7 @@ cat("Eigenvalues derived from custom NIPALS\n     (3rd decimal round-off):\n",
 diag(sqrt(t(ldg[1:nrow(ldg),]) %*% ldg[1:nrow(ldg),] ))
 
 # Compute variable space (R^n) eigenvectors
-LBD <- matrix(0,nd,nd) ; diag(LBD) <- lbd[1:nd]
+LBD <- matrix(0,length(lbd),length(lbd)) ; diag(LBD) <- lbd
 evecs_var <- sqrt(N) %*% psi %*% solve(LBD^(0.5))
 diag(sqrt(t(ldg[,1:nd]) %*% ldg[,1:nd]))  # verify that every vector is normed
 
@@ -171,8 +171,8 @@ biplot(psi[,1:nd],ldg[,1:nd],
 #############################################
 # 4: VARIMAX
 #############################################
-
-var_rot <- varimax(ldg[,1:nd] %*% sqrt(LBD),normalize=T,eps=1e-5)
+par(mfrow=c(1,1))
+var_rot <- varimax(ldg[,1:nd] %*% sqrt(LBD[1:nd,1:nd]),normalize=T,eps=1e-5)
 phi_rot <- var_rot$loadings
 
 # plot in rotated PC1-2 factorial plane
@@ -213,7 +213,7 @@ varproj_plot + geom_path(aes(xc, yc), data = circ_data, col="grey70")
 #      using FactoMineR's PCA
 #############################################
 
-pcaX <- PCA(X_std,quali.sup=c(9),graph=F)
+pcaX <- PCA(scale(X, T,T),quali.sup=c(9),graph=F)
 pcaX_psi <- pcaX$ind$coord[,1:nd]  # projections of individuals on PC axes; scores
 pcaX_phi <- pcaX$var$coord[,1:nd]  # correlations with principal directions
 pcaX_var_rot <- varimax(pcaX_phi)
@@ -237,7 +237,7 @@ dimdesc(pcaX,axes=1:nd,proba=0.5)
 #############################################
 
 rm(list=ls(all=TRUE))
-sim_qttc = read.csv("Data/PCA_quetaltecaen.csv",
+simil_qttc = read.csv("Data/PCA_quetaltecaen.csv",
                      header = TRUE, 
                      quote = "\"", 
                      dec = ".",
@@ -245,15 +245,15 @@ sim_qttc = read.csv("Data/PCA_quetaltecaen.csv",
                      encoding="UTF-8",
                      check.names=TRUE
                      )
-rownames(sim_qttc) <- sim_qttc[,1];  sim_qttc <- sim_qttc[,-1]
-dim(qttc)
+rownames(simil_qttc) <- simil_qttc[,1];  simil_qttc <- simil_qttc[,-1]
+dim(simil_qttc)
 
 # make data table symmetric, preserve diagonal values, calculate dissimilarities
 # max. similarity = 10
-dis_qttc <- 10 - 0.5 * (sim_qttc + t(sim_qttc))
+dis_qttc <- 10 - 0.5 * (simil_qttc + t(simil_qttc))
 
 # show dissimiarity self-perception
-cat(rownames(dis_qttc),"\n",diag(as.matrix(dis_qttcSYM)))
+cat(rownames(dis_qttc),"\n",diag(as.matrix(dis_qttc)))
 
 
 #############################################
@@ -275,7 +275,7 @@ dis_data <- cmdscale(dis_qttc, k=2, eig=T, add=T)
 # text(dis_data[["points"]][,1], dis_data[["points"]][,2], rownames(dis_data[["points"]]), cex = 0.6, col="red")
 
 plottitle = sprintf("Perceived distance between communities")
-plotdata <- data.frame(PC1=dis_data[["points"]][,1],PC2= dis_data[["points"]][,2],z=colname(dis_qttc))
+plotdata <- data.frame(PC1=dis_data[["points"]][,1],PC2= dis_data[["points"]][,2],z=colnames(dis_qttc))
 dis_plot <- ggplot(data = plotdata) + 
   theme_bw()+
   # geom_vline(xintercept = 0, col="gray") +

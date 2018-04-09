@@ -1,21 +1,12 @@
-##  MIRI:     MVA
-##  LAB #2:   PCA
+##  Project:   PCA
 ##  Authors:  Cedric Bhihe <cedric.bhihe@gmail.com>
 ##            Santi Calvo <s.calvo93@gmail.com>  
-##  Delivery: before 2018.03.19 - 23:55
+##  Date: 2018.03.19
 
 
 ##  Script name: lab2-script-v2_mva.R
 rm(list=ls(all=TRUE))
 library(MASS)    #  exec `install.packages("MASS")` to use 'fractions'
-#library(FactoMineR)
-#library("mice")
-#library("DMwR")
-#library("VIM")    # exec `install.packages("VIM")` in R shell first
-#library("dplyr")  # exec `install.packages("dplyr")` in R shell first
-                  # split-apply-combine, specialized to df
-#library(chemometrics)  # exec `install.packages("chemometrics")` in R shell first
-                  # to have access to MCD outliers based on Mahalanobis distance
 require(graphics)
 require(ggplot2)  # exec `install.packages("ggplot2")` in R shell first
 library(ggrepel)
@@ -26,7 +17,6 @@ ccolors=c("red","green","blue","orange","cyan","tan1","darkred","honeydew2","vio
 
 set.seed(932178)
 
-#setwd("C:/Users/calvo/Desktop/UPC/Courses/Third_semester/MVA/Exercises/Lab1v2/")
 setwd("~/Documents/Study/UPC/MIRI-subjects/MVA_multivariate-analysis/Labs/")
 
 #############################################
@@ -122,25 +112,16 @@ pcaF <- function(X,datestamp,wflag,wparam,...) {
   
   # standardized X matrix
   colsd <- c()
-  #X_sd <- 1/sqrt(diag(covX))
-  for (cc in 1:ncol(X)) { colsd <- c(colsd,1/sd(X[,cc])) } # build vector of variables' sd(X[,.])
-  X_std <- X_ctd %*% diag(colsd,ncol(X),ncol(X)) # build standardized observation matrix
-  # for (cc in 1:ncol(X)) { X_std[,cc] <- as.matrix(X_ctd[,cc]/sd(X[,cc])) } # build standardized observation matrix
+  # for (cc in 1:ncol(X)) { colsd <- c(colsd,1/sd(X[,cc])) } # build vector of variables' sd(X[,.])
+  # X_std <- X_ctd %*% diag(colsd,ncol(X),ncol(X)) # build standardized observation matrix
+  # In the above 2 lines, the computation of a standardized matrix only applies to uniformely
+  # weighted obs matrices. 
+  # If the matrix X is non uniformely weighted, then a ponderation correction must be introduced
+  # in the form of:
+  X_std <- sweep(X_ctd,2,sqrt(diag(covX)),"/")  # Bug patch contributed by Belchin Adriyanov Kostov
   colnames(X_std) <- colnames(X)
   # correlation matrix (on X_std)
   corX <- t(X_std) %*% N  %*% X_std
-  # compare with cor(X)    # ##########################################################
-  print("ok 'corX'")
-  
-  
-  # #########################################################
-  # Computation of X_std and corX2 with population correction
-  X_std2<-sweep(X_ctd,2,sqrt(diag(covX)),"/")
-  corX2 <- t(X_std2) %*% N  %*% X_std2
-  # The above 2 lines are not used in this work.
-  # They are meant as a check only.
-  # #########################################################
-  
   
   evals <- eigen(corX)$values
   cat("Eigenvalues (obs): ",round(evals,4),"\n")

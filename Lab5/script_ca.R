@@ -14,8 +14,7 @@ library(FactoMineR)     # to use PCA method
 require(graphics)       # enhanced graphics
 library(ggplot2)        # to enhance graph plotting
 library(ggrepel)        # to plot with well behaved labeling
-#library("factoextra")   # ggplot2-based elegant visualization
- 
+
 options(scipen=6) # R switches to sci notation above 5 digits on plot axes
 ccolors=c("red","green","blue","orange","cyan","tan1","darkred","honeydew2","violetred",
           "palegreen3","peachpuff4","lavenderblush3","lightgray","lightsalmon","wheat2")
@@ -48,27 +47,33 @@ dim(qttc)
 
 # 1/ Pearson chi-square test for significant association (dependence) between row & col categs
 # H0: joint cell counts distr. in 2D contingency table = (row marginals) x (col marginals)
-# DFs = 49
-chisq.test(qttc)
-# Conclusion: We cannot reject the null hypothesis at the rist 5% of erring. 
-# There is independence of row and column variables.
+# DFs = 49 is not taken into account for test statistics computed by Monte-Carlo simulations.
+chisq.test(qttc,
+           simulate.p.value=T,
+           B=10000)
+# Conclusion: chi-sq=7.2 outside the [31.6 , 70.2] interval from (chi-sq tables) for two-sided
+# distributions at 2.5% risk. We can reject the null hypothesis at the rist 5% of erring. 
+# There is significant association of row and column variables.
 # Warning message in chisq.test(qttc) : Chi-squared approximation may be incorrect !!!
 
 # 2/ Balloon plot
 library ("gplots")
-par(mfrow=c(1,1))
+par(mfrow=c(1,2))
 dt <- as.table(as.matrix(qttc))
 balloonplot(t(dt), main ="\'¿Qué tal te caen?\' data set",
             xlab ="", ylab="",
-            rowsrt=0, colsrt=45,
-            label = FALSE, 
+            rowsrt=0, colsrt=90, asp=1,
+            rowmar=2.2,colmar=2.2,
+            label = FALSE,
+            text.size=1,
             show.margins = T)
 
 # 3/ Mosaic plot
 mosaicplot(dt, 
            shade=T,
-           las=2,
-           main = "\'¿Qué tal te caen?\' data set")
+           las=2, 
+           cex.axis=1,
+           main ="")
 # Both representations show that there appear to be no difference between random data
 # and the distribution of counts in the contigency table at hand !
 par(mfrow = c(1,1))
@@ -107,9 +112,9 @@ Fim <- solve(Di) %*% as.matrix(fij) %*% solve(sqrt(Dj))
 # vars along rows "i".
 
 # We can now apply cloud centering and define a new centered data set, X_ctd
-oneM <- matrix(1,nrow=dim(Fim), ncol=dim(Fim), byrow=T)
+unitaryM <- matrix(1,nrow=dim(Fim), ncol=dim(Fim), byrow=T)
 
-X_ctd <- Fim - oneM %*% sqrt(Dj)
+X_ctd <- Fim - unitaryM %*% sqrt(Dj)
 
 rownames(X_ctd) <- rownames(qttc)
 colnames(X_ctd) <- colnames(qttc)
@@ -160,7 +165,7 @@ plot(seq(1:length(evals)),evals,
      col="blue",
      type="b",
      main=plottitle,
-     sub="(Red labels show cumulative variance explanatory power)",
+     #sub="(Red labels show cumulative variance explanatory power)",
      xlab="Index (sorted)",
      ylab="Eigenvalues"
 )
@@ -169,6 +174,11 @@ text(x=1:length(evals), y=evals,
      cex=0.75,
      pos=1,
      col="red") # add labels
+text(x=4,y=evals[1],
+     labels="(Red labels show cumulative\nvariance explanatory power)",
+     cex=1,
+     pos=3,
+     col="black")
 abline(h=mean(evals),col="gray")
 text(x=4, y=mean(evals)-0.0001, 
      labels=paste0("Eigenvalue mean: ",as.character(format(mean(evals),scientific=T))),
@@ -185,6 +195,11 @@ grid()
 # A red point may appear close to a blue point but that is only qualitative and no 
 # conclusion can be drawn from that fact.
 plot(caX,invisible="col", label="row")
+
+# The projection of row centroid on fist factorial plane 
+# coincides with center of factorial plane.
+points(rowCentroid %*% evecs[,1:2],pch=18,type='p',col='green',cex = 2)  
+
 plot(caX,invisible="row", label="col")
 
 par(mfrow = c(1,1))
@@ -237,7 +252,7 @@ cat("\nTotal inertia:",totI,"\n\n")
 
 # Discussion:
 #   Earlier we saw that the Chi-square statistics led us to the conclusion that col
-#   and rows were independent. This would be consistent with the cloud of row profiles 
+#   and rows were not independent. This would be consistent with the cloud of row profiles 
 #   being concentrated around the centroid and the inertia to be zero or very close, as:
 #                fij[11,jj] = fi[ii] * fj[jj]
 # Conclusions:
@@ -271,7 +286,7 @@ err <- 1e4
 cnt <- 0
 
 while (err > eps) {
-  cnt <- cnt +1
+  cnt <- cnt +1   # only needed to keep track of convergence
   fij_new <- qttc_new/N_new
   fi_new <- rowSums(fij_new)
   fj_new <- colSums(fij_new)
@@ -289,10 +304,10 @@ while (err > eps) {
 }
 
 # New contribution to inertia of cells
-View(format(tic_tmp,scientific=T))
-cat("\nTotal inertia:",totI_tmp,"\n\n")
+View(format(tic_new,scientific=T))
+cat("\nTotal inertia:",totI_new,"\n\n")
 cat ("\nDiagonal's new contribution to inertia:",
-     round(100*sum(diag(tic_tmp))/totI_tmp,2),
+     round(100*sum(diag(tic_new))/totI_new,2),
      "%","\nConclusion: We got rid of the diagonal overloading and (per Q-5) of the Gutmann effect.\n")
 
 
@@ -302,6 +317,7 @@ cat ("\nDiagonal's new contribution to inertia:",
 #    Interpret results
 #############################################
 
+## new CA
 par(mfrow = c(1,2))
 caX_new <- CA(qttc_new,ncp=ncol(qttc_new)-1,
               graph=T,
@@ -317,15 +333,15 @@ caX_new <- CA(qttc_new,ncp=ncol(qttc_new)-1,
 caX_new$eig                   # no difference with previous result
 evals_new <- caX_new$eig[,1]
 
-# screeplot
-plottitle = sprintf("PC explanatory power\n\"¿Qué tal te caen?\" data set\n(corrected for Gutmann effect)")
+## new screeplot
+plottitle = sprintf("PC explanatory power\n\"¿Qué tal te caen?\" data set")
 plot(seq(1:length(evals_new)),evals_new,
      pch=15, 
      cex=1,
      col="blue",
      type="b",
      main=plottitle,
-     sub="(Red labels show cumulative variance explanatory power)",
+     #sub="(Red labels show cumulative variance explanatory power)",
      xlab="Index (sorted)",
      ylab="Eigenvalues"
 )
@@ -334,6 +350,11 @@ text(x=1:length(evals), y=evals_new,
      cex=0.75,
      pos=1,
      col="red") # add labels
+text(x=4,y=evals_new[1],
+     labels="(Red labels show cumulative\nvariance explanatory power,\ncorrected for the Gutmann effect)",
+     cex=1,
+     pos=1,
+     col="black")
 abline(h=mean(evals_new),col="gray")
 text(x=4, y=mean(evals_new), 
      labels=paste0("Eigenvalue mean: ",as.character(format(mean(evals),scientific=T))),
@@ -342,7 +363,7 @@ text(x=4, y=mean(evals_new),
      col="red")
 grid()
 
-# Number of significant dimensions
+## Number of significant dimensions
 # 1/ Point successively to every component of the list of evals sorted by decreasing value 
 # 2/ When total explained inertia exceeds 80% chose eval index as nbr of significant dims
 n_dim <- ncol(X_ctd)-1
@@ -354,9 +375,7 @@ plot(caX_new,invisible="row", label="col", sub="(Corrected Gutmann effect)")
 par(mfrow = c(1,1))
 
 
-
-
-# ... and check with a new full PCA
+## ... and check with a new full PCA
 Di_new <- diag(fi_new)
 Dj_new <- diag(fj_new)
 # First, define the cloud of rows, with the matrix of conditional frequencies of rows:
@@ -371,7 +390,7 @@ rowCentroid_new <- sqrt(fj_new)
 # sense owing to the metric correction introduced by 1/(f_.j) for rare occurence of "j" cat 
 # vars along rows "i".
 
-# Apply cloud centering and define a new centered data set, X_ctd_new
+## Apply cloud centering and define a new centered data set, X_ctd_new
 X_ctd_new <- Fim_new - oneM %*% sqrt(Dj_new)
 rownames(X_ctd_new) <- rownames(qttc_new)
 colnames(X_ctd_new) <- colnames(qttc_new)
@@ -385,7 +404,7 @@ pcaX <- PCA(X_ctd_new,
             graph = TRUE, axes = c(1,2))
 pcaX$eig
 
-# Number of significant dimensions
+## Number of significant dimensions
 # 1/ Point successively to every component of the list of evals sorted by decreasing value 
 # 2/ When total explained inertia exceeds 80% chose eval index as nbr of significant dims
 n_dim <- ncol(X_ctd)-1
@@ -395,3 +414,37 @@ cat("Number of significant dimensions:",nd)
 par(mfrow = c(1,1))
 # Conclusion: All checks. 
 #   By way of conclusion explain in details certain points move so much.
+
+
+## Recompute the Chi-sq test statistics after the Gutmann effect correction.
+chisq.test(qttc_new,
+           simulate.p.value=T,
+           B=10000)
+# Result:
+# X-squared = 0.96557  -->>   reject H0
+
+
+
+## Bar plot of sum of sq-cosines in PC1-2 before and after the Gutmann effect correction
+par(mfrow = c(1,1))
+
+# build dataframe with distribution of:
+rowcos2_pc12_new <- caX_new$row$cos2[,1]+caX_new$row$cos2[,2]
+names(rowcos2_pc12_new) <- rownames(qttc)
+rowcos2_pc12_new <- sort(rowcos2_pc12_new,decr=T)
+
+rowcos2_pc12 <- caX$row$cos2[,1]+caX$row$cos2[,2]
+names(rowcos2_pc12) <- rownames(qttc)
+rowcos2_pc12 <- rowcos2_pc12[order(match(names(rowcos2_pc12),names(rowcos2_pc12_new)))]
+plotdata <- data.frame(Region_modalities=c(names(rowcos2_pc12_new),names(rowcos2_pc12)),
+                       Quality=c(rowcos2_pc12_new,rowcos2_pc12),
+                       Type=c(rep("G-corrected",nrow(qttc)),rep("No correction",nrow(qttc)))
+)
+# To order barplot per decreasing mod. count, either:
+plotdata$Region_modalities <- factor(plotdata$Region_modalities,level=names(rowcos2_pc12_new))
+ggplot(data=plotdata,mapping=aes(x=Region_modalities,y=Quality,fill=Type))+
+  labs(title="Quality of representation in PC1-2\nfor \"¿Qué tal te caen?\" dataset")+
+  geom_bar(position="dodge",stat="identity") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_fill_manual(values=c(2,4))
+

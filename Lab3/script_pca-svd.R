@@ -1,9 +1,9 @@
-##  "Beyond PCA"
-##  Authors:  Cedric Bhihe <cedric.bhihe@gmail.com>
-##            Santi Calvo <s.calvo93@gmail.com>  
-##  Date: 2018.03.31
-
+# ####################################
+##  Topic:    PCA and SVD
+##  Authors:  Cedric Bhihe, Santi Calvo
+##  Date:	  2018.03.31
 ##  Script name: script_pca_svd.R
+# ####################################
 
 rm(list=ls(all=TRUE))
 

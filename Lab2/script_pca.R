@@ -1,10 +1,10 @@
-##  Project:   PCA
-##  Authors:  Cedric Bhihe <cedric.bhihe@gmail.com>
-##            Santi Calvo <s.calvo93@gmail.com>  
-##  Date: 2018.03.19
+# #####################################
+##  Topic:    PCA
+##  Authors:  Cedric Bhihe, Santi Calvo
+##  Date:     2018.03.19
+##  Script:   script_pca-svd.R
+# #####################################
 
-
-##  Script name: lab2-script-v2_mva.R
 rm(list=ls(all=TRUE))
 library(MASS)    #  exec `install.packages("MASS")` to use 'fractions'
 require(graphics)

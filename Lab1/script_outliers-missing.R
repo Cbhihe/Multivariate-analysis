@@ -1,8 +1,9 @@
-##  MIRI:     MVA
-##  LAB #1:   MIssing values and outliers
-##  Authors:  Cedric Bhihe <cedric.bhihe@gmail.com>
-##            Santi Calvo <s.calvo93@gmail.com>  
-##  Delivery: before 2018.03.07 - 23:55
+# #####################################
+## Topic:    Missing values and outliers
+## Authors:  Cedric Bhihe, Santi Calvo
+## Date:     2018.03.07 - 23:55
+## Script:   script_outliers-missing.R
+# #####################################
 
 
 rm(list=ls(all=TRUE))

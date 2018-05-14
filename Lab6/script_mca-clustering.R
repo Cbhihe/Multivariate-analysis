@@ -1,9 +1,10 @@
-# #####################################
-##  Topic:	  Correspondence Analysis
-##  Authors:  Cedric Bhihe, Santi Calvo 
-##  Date:	  before 2018.05.04 - 23:55
-##  Script name: script_ca.R
-# #####################################
+##  MIRI:     MVA
+##  LAB #5:   Correspondence Analysis
+##  Authors:  Cedric Bhihe <cedric.bhihe@gmail.com>
+##            Santi Calvo <s.calvo93@gmail.com>  
+##  Delivery: before 2018.05.04 - 23:55
+
+##  Script name: lab5-script_mva.R
 
 rm(list=ls(all=TRUE))
 
@@ -405,7 +406,7 @@ pcaX$eig
 
 ## Number of significant dimensions
 # 1/ Point successively to every component of the list of evals sorted by decreasing value 
-# 2/ When total explained inertia exceeds 80% chose eval index as nbr of significant dims
+# 2/ When total explained inertia exceeds 80%, choose eval index as nbr of significant dims
 n_dim <- ncol(X_ctd)-1
 for (nd in 1:n_dim) {  if(pcaX$eig[nd,3] >= 80) break  }
 cat("Number of significant dimensions:",nd)

@@ -1,10 +1,9 @@
-##  MIRI:     MVA
-##  LAB #4:   Clustering Analysis
-##  Authors:  Cedric Bhihe <cedric.bhihe@gmail.com>
-##            Santi Calvo <s.calvo93@gmail.com>  
-##  Delivery: before 2018.04.23 - 23:55
-
-##  Script name: lab4-script_mva.R
+# ######################################
+##  Topic:    Clustering Analysis
+##  Authors:  Cedric Bhihe, Santi Calvo
+##  Date:	  2018.04.23 - 23:55
+##  Script name: script_clustering.R
+# ######################################
 
 rm(list=ls(all=TRUE))
 

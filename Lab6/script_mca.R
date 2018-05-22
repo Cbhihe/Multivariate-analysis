@@ -1,10 +1,9 @@
 # ############################################
-##  MIRI:     MVA
-##  LAB #6:   Multiple Correspondence Analysis
-##  Authors:  Cedric Bhihe, Santi Calvo  
-##  Delivery: before 2018.05.14 - 23:55
-##  Script name: lab6_script_mca-clustering.R
-# ############################################
+##  Topic:      Multiple Correspondence Analysis
+##  Authors:    Cedric Bhihe
+##  Date:       2018.05.22
+##  Script:     script_mca.R
+# ##############################################
 
 rm(list=ls(all=TRUE))
 
@@ -15,7 +14,6 @@ rm(list=ls(all=TRUE))
 options(scipen=6) # R switches to sci notation above 5 digits on plot axes
 set.seed(932178)
 setwd("~/Documents/Academic/UPC/MIRI/Subjects/MVA_multivariate-analysis/Labs/")
-#setwd("C:/Users/calvo/Desktop/UPC/Courses/Third_semester/MVA/Exercises/Labs/")
 
 ccolors=c("red","green","blue","orange","cyan","tan1","darkred","honeydew2","violetred",
           "palegreen3","peachpuff4","lavenderblush3","lightgray","lightsalmon","wheat2")
@@ -145,7 +143,8 @@ procdata <- as.data.frame(cbind(make=as.character(cars$marca),
                                 gasConsum=gasConsum))
 cars_aggr01 <- aggregate(cbind(cylDisp,gasConsum)~make+prodSeg,procdata,mean)  # data.frame object
 cars_aggr01 <- cars_aggr01[cars_aggr01$make %in% c("ALFA ROMEO", "BENTLEY", "VOLVO", "CITROEN"),]
-# cars_aggr01[order(match(c("cheap","medium","expensive","luxury"),factor(cars_aggr01[,2]))),]
+# print with re-ordered "precio_categ" column
+cars_aggr01[order(match(cars_aggr01[,2],c("cheap","medium","expensive","luxury"))),]
 
 
 # ############################################
@@ -158,13 +157,53 @@ mcaCars <- MCA(cars,ncp=7,
                quanti.sup=c(17),
                quali.sup=c(18,19),
                excl=NULL,
-               graph = F,
+               graph = T,
                level.ventil = 0.00,
                axes = c(1,2),
                row.w = NULL,
                method="Indicator",
                na.method="NA",
                tab.disj=NULL)
+
+## visualize summary of MCA results for arbitrary nbr of observations 
+# nbelements=10   default
+# nbelements=Inf  for all obs
+summary(mcaCars,nbelements=Inf,file="Lab6/Report/mcaCars_summary.txt") # commit to disk
+summary(mcaCars,nbelements=12)
+# for each obs/individual: 
+  # 'Dim.{1,2,3}' are coordinates of obs on PC axes, psi[,1..3]
+  # 'ctr' are contributions to PC direction, such that col.sum = 1
+  # 'cos2' is quality of representation of individual along given PC direction
+# for each active categorical var:
+  # 'Dim.{1,2,3}' are coordinates of var on PC axes, psi[,1..3]
+  # 'ctr' are contributions of var to PC direction, such that col.sum = 1
+  # 'cos2' is quality of representation of var along given PC direction
+  # 'v.test' (for either active or illustrative (non-active) categorical vars)
+     # if in ]-2,+2[ the var's coordinate is not significantly different from 0 
+     # if outside ]-2,+2[, psi's PC axis coord is significantly less than 0 = coord of centroid
+     # In other words, individuals expressing that modality are NOT picked at random. 
+     # We reject H0: "modality's mean for group/cluster = global modality mean", 
+     #+ i.e. "individuals expressing that modality are chosen at random"
+  # 'heta²' is the squared correlation ratio used in one way ANOVA. It represents
+  #+ correlation between the categorical var and the dimension or PC direction.
+# for each supplementary categorical var, results are presented as for active categor vars.
+#+ except there is no contribution to the construction of dimensions (PCs) in the analysis
+  # 'Dim.{1,2,3}'
+  # 'cos2'
+  # 'v.test'
+  # 'heta²'
+# for each supplementary continuous var
+  # coordinates for each of the dimensions (PC axes) represent correlations between var and axes
+
+# Note that the contribution of categorical vars cannot be deduced from its position (away from the 
+#+ origin) on the graph. It is because its contribution is generally influenced by its frequency of 
+#+ occurence. A low frequency entails a large contribution. => read contribs from output !!!
+
+attributes(mcaCars) # structure of data in mcaCars
+mcaCars$eig  # get evals 
+             # + variance explanation power 
+             # + cumulative percentage of explained variance 
+
 
 par(mfrow=c(1,2))
 
@@ -178,6 +217,34 @@ fviz_mca_ind(mcaCars,
              axes = c(1, 2),
              geom="point",
              col.ind = "cos2")
+# plot(mcaCars,
+#      invisible=c("var","quali.sup","quanti.sup"),
+#      cex=0.8,
+#      selectMod="contrib 20",
+#      unselect="grey30")
+# plot(mcaCars,
+#      invisible=c("ind","quali.sup","quanti.sup"), # print only vars
+#      cex=0.8, 
+#      selectMod="cos2 0.2",   # only vars whose cos2 >=.2
+#      unselect="grey30")
+# plot(mcaCars,
+#      invisible=c("quali.sup","quanti.sup"),  # print vars and obs
+#      cex=0.8,
+#      selectMod="cos2 0.2", # only var (categories) and observation whose cos2 >= 0.2
+#      select="contri 10", # 10 obs that contribute most
+#      unselect="grey30")
+# plot(mcaCars,
+#      choix="var",
+#      xlim=c(0,0.5),ylim=c(0,0.5), # zoom into graph
+#      cex=0.7)
+
+# Coords on a dimension for:
+  # categorical vars = squared correlation ratio between Dim and categor var.
+  # continuous vars = squared correlation coeff between Dim and continuous var.
+
+plot(mcaCars,
+     invisible=c("var","quali.sup","quanti.sup"),
+     habillage="frequency")
 
 par(mfrow=c(1,1))
 
@@ -232,11 +299,11 @@ nd <-6
 cat("Inertia explained:",cumsum(100*evals_c/sum(evals_c))[nd],"\n")
 
 
-#############################################
+# ############################################
 ## 5: hierarchical clustering with significant factors, 
 #     discuss nbr of final classes 
 #     consolidation clustering.
-#############################################
+# ############################################
 psiCars <- mcaCars$ind$coord[,1:nd]   # yields obs coordinates, for nd significant dim, in PC factorial space, R^min(p,nd)
 distCars <- dist(psiCars, method = "euclidean")
 treeCars <- hclust(distCars, method = "ward.D2")
@@ -244,6 +311,7 @@ treeJoins <- length(treeCars$height)
 
 par(mfrow=c(1,2))
 
+# plot join-distances at each iteration
 barplot((treeCars$height[(treeJoins-40):(treeJoins)]),main="Aggregated distance at each iteration")
 abline(h=10,col="red")
 text(x=24, y=10-0.04, 
@@ -252,9 +320,13 @@ text(x=24, y=10-0.04,
      pos=3,
      col="red")
 
-NC = 5
+NC = 5  #  <<<<<<<<  OUR CONCLUSION / CHOICE !!!!!!!!!!
 cut <- cutree(treeCars,k=NC)  # identifying levels to indiv. according to NC clusters
 
+# compute size of clusters
+cat("Sizes of clusters (before consolidation):", table(cut),"\n")
+
+# plot dendrogram
 plot(treeCars,
      main='Hierarchical Clustering (Ward.D2)',
      xlab='Distance',
@@ -266,7 +338,7 @@ rect.hclust(treeCars, k=NC, border="green")
 par(mfrow=c(1,1))
 
 
-## calculate centroids cluster wise for the projection of individuals 
+## calculate centroids cluster-wise for the projection of individuals 
 centroids <- aggregate(psiCars,list(cut),mean)[,2:(nd+1)] # take out 1st column = row labels
 
 
@@ -277,6 +349,7 @@ Ib <- 100*Bss/Tss
 
 
 ## Plot observations in 1st factorial plane
+plottitle <- "Clustering of observations in PC1-2 factorial plane"
 
 # compute index vector for 10% of observation tags: 'rownames(cars)'
 labels_idx <- sample(1:nrow(cars),floor(.1*nrow(cars)),replace=F)
@@ -321,7 +394,6 @@ labels <- rep("",length(rownames(cars)))
 labels[labels_idx] <- rownames(cars)[labels_idx]
 plotdata <- data.frame(PC1=psiCars[,1],PC2= psiCars[,2],z=labels)
 
-plottitle <- "Clustering of observations in PC1-2 factorial plane"
 ggplot(data = plotdata,col=cut+16) +
     theme_bw()+
     geom_vline(xintercept = 0, col="gray") +
@@ -340,6 +412,7 @@ ggplot(data = plotdata,col=cut+16) +
 
 ## Compute k-means
 kmeanCars <- kmeans(psiCars,centers=centroids)
+kmeanCars$cluster
 
 # Quality index after consolidation
 Bss <- sum(rowSums(kmeanCars$centers^2)*kmeanCars$size)  # kmeanCars$betweenss
@@ -364,16 +437,23 @@ library("cluster")
 sil <- silhouette(kmeanCars$cluster,distCars)
 plot(sil, col=16+seq(NC),cex=2, main='Silhouette widths for consolidated clustering')
 
+cat("Cluster sizes (after k-means consolidation:",kmeanCars$size,"\n")
 
-#############################################
-## 6: Using catdes(), intepret cluster result 
-#     name groups, represent groups in 1st factorial plane
-#############################################
-# 'kmeanCars$cluster' is the nrow(cars)-component col-vector indicating cluster factoring level 
+
+# ############################################
+## 6: Using the function catdes() interpret and name the obtained clusters
+#     Represent clusters in the first factorial plane
+# ############################################
+# 'kmeanCars$cluster' below is the nrow(cars)-component col-vector indicating cluster factoring level 
 # (1 to 5 in present case), i.e. to which cluster each observation belongs.
-kmeanCars$size
 
 (catdesCars <- catdes(cbind(as.factor(kmeanCars$cluster),cars[,1:16]),
-                      17,   # index of the variable to characterized  ??? or 1 ???
-                      proba=0.01,
+                      1,           # index of the variable to characterized, i.e. 'kmeanCars$cluster'
+                      proba=0.01,  # significance threshold considered to characterize category
                       row.w=NULL))
+# Visualization
+catdesCars$category$`1`[1:6,4]  #  p-values for cluster 1
+catdesCars$category$`2`[1:6,4]  #  p-values for cluster 2
+catdesCars$category$`3`[1:6,4]  #  p-values for cluster 3
+catdesCars$category$`4`[1:6,4]  #  p-values for cluster 4
+catdesCars$category$`5`[1:6,4]  #  p-values for cluster 5

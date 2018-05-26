@@ -18,7 +18,7 @@ options(scipen=6) # R switches to sci notation above 5 digits on plot axes
 set.seed(932178)
 setwd("~/Documents/Academic/UPC/MIRI/Subjects/MVA_multivariate-analysis/Labs/")
 #setwd("C:/Users/calvo/Desktop/UPC/Courses/Third_semester/MVA/Exercises/Labs/")
-ccolors=c("red","green","blue","orange","cyan","tan1","darkred","honeydew2","violetred",
+ccolors=c("blue","red","green","orange","cyan","tan1","darkred","honeydew2","violetred",
           "palegreen3","peachpuff4","lavenderblush3","lightgray","lightsalmon","wheat2")
 datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); 
 
@@ -32,12 +32,12 @@ setRepositories(ind = c(1:6,8))
 #setRepositories()   # to specify repo on the fly:
 #chooseCRANmirror()  # in case package(s) cannot be downloaded from default repo
 
-#library(xlsx, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
+library(xlsx, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
 
 #install.packages(c("rpart", "rattle", "rpart.plot"))
 library("rpart", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # tree building
-library("rpart.plot", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")   # tree plotting
-library("rattle", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")       # tree var importance
+#library("rpart.plot", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")   # tree plotting
+library("rattle", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")       # asRules(), fancyRpartPlot()
 
 library("VIM", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
 #library("mice", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # for imputations
@@ -58,7 +58,7 @@ csvSaveF <- function(dataObj,targetfile) {
                 eol="\n",
                 na ="NA",
                 dec=".",
-                row.names=F,
+                row.names=T,
                 col.names=T)
 }    # save cvs to file on disk
 
@@ -70,9 +70,9 @@ csvSaveF <- function(dataObj,targetfile) {
 
 # audit <- read.xlsx("Lab7/audit.xlsx",
 #                  sheetIndex=1,
-#                  sheetName=NULL, 
+#                  sheetName=NULL,
 #                  header=T,
-#                  as.data.frame=T, 
+#                  as.data.frame=T,
 #                  encoding="UTF-8",
 #                  keepFormulas=F)
 # 
@@ -122,9 +122,9 @@ audit_bak <- audit # backup
 # We use observations' ID (1st column) as row names for the 2000 x 12 data set. 
 # The data consists of:
 # - 6 active categorical variables: c("Employment","Education", "Marital", "Occupation", "Gender", "Accounts")
-names(audit_bak[which(sapply(audit_bak, is.factor))])
+cat("Active categorical factors:",names(audit_bak[which(sapply(audit_bak, is.factor))]),"\n")
 # - 4 active continuous variables:  c("Age","Income","Deductions","Hours")
-names(audit_bak[which(! sapply(audit_bak[,1:10], is.factor))])
+cat("Active continuous factors:",names(audit_bak[which(! sapply(audit_bak[,1:10], is.factor))]),"\n")
 # - 1 supplementary continuous variable: c("Adjustment"), which is the result of the variable "Adjusted" being 1 
 # - 1 supplementary categorical (yes/no or 0/1) variable: c("Adjusted"), which is our target/dependent variable
 
@@ -158,7 +158,7 @@ audit$Income[which(audit_bak$Income>binsIncome[3])] <- modsIncome[4]
 # Deductions
 cat("Deductions:\n   Audits with deductions:",length(which(audit$Deductions !=0)),paste0("(",100*length(which(audit$Deductions !=0))/ nrow(audit),"%)\n"))
 max_y <- 300
-histplot <- hist(audit$Deductions+1,
+hist_plot <- hist(audit$Deductions+1,
                  main="Deductions claimed", 
                  xlab="Amounts of Deduction (USD)",
                  ylab="Nbr of Deductions Claimants",
@@ -169,15 +169,14 @@ histplot <- hist(audit$Deductions+1,
                  # breaks=10,
                  # proba=F,
                  freq=T)
-text(x=(histplot$breaks[-1]+histplot$breaks[1:(length(histplot$breaks)-1)])/2,
-     y=c(0.98*max_y,histplot$counts[-1]),
-     labels=histplot$counts,
+text(x=(hist_plot$breaks[-1]+hist_plot$breaks[1:(length(hist_plot$breaks)-1)])/2,
+     y=c(0.98*max_y,hist_plot$counts[-1]),
+     labels=hist_plot$counts,
      col="blue",
      pos=3,
      cex=1)
 
-histplot
-rm(histplot)
+rm(hist_plot)
 
 # Hours
 binsHours <- c(30,40)
@@ -202,11 +201,13 @@ testRows <- ceiling(nrow(audit)*2/3):nrow(audit)  # used to realize model
 ## 4: Build the decision tree to predict var “Adjusted” using the training data. 
 #     Determine cutoff value for decision making
 # ############################################
+# 2 cases are computed, one with continuous var "Deductions", and another without,  
+# in order compare results and decision trees
 
 #audit$Adjusted <- as.factor(audit$Adjusted)
 
-## Keep  var "Deductions" to compare results and decision trees
-auditTree1 <- rpart(Adjusted ~., 
+
+AuditTree <- rpart(Adjusted ~., 
                    data=audit[trainRows,-c(11)],  # take out illustrative var. "Adjustment"
                    weights=NULL,
                    method="class",
@@ -216,115 +217,91 @@ auditTree1 <- rpart(Adjusted ~.,
 
 # plot raw tree
 par(mfrow = c(1,1), xpd = NA)
-plot(auditTree1)
-text(auditTree1,use.n=T,cex=0.8,col="darkblue")
-#par(mfrow = c(1,1))
+plot(AuditTree)
+text(AuditTree,use.n=T,cex=0.8,col="darkblue")
+par(mfrow = c(1,1))
 
-plotcp(auditTree1)             # visualize cross validation results
+# print complexity parameter table, where nsplit= nbr nodes -1
+# error for full data-set w/o CV + error mean and standard deviation in CV-replicas for various alpha (cp)
+printcp(AuditTree,digits=4)      #  `nsplit` = nbr tree nodes -1
 
-# plot Relative tree impurity, R(T), vs Split number, aka Tree size
-plot(auditTree1$cptable[,2],auditTree1$cptable[,3],
-     type="l",
-     xlab="size of tree",
-     ylab="relative tree impurity",
-     main="R(T)",
-     col=ccolors[1])
-lines(auditTree1$cptable[,2],auditTree1$cptable[,4],
+# visualize training error (w/ and w/o CV)
+# tree size = nbr of nodes =`nsplit`+1 behaves as inversely as alpha=`cp`
+plot(AuditTree$cptable[,2]+1,AuditTree$cptable[,3],  # `rel_error`, training cost with complete data set 
+                                                       # (no CV => bigger data-set => smaller variance/node => smaller cost)
+     main="Tree cost vs. tree size",
+     sub=expression("(cost is normalized wrt to root cost."),
+     xlab="Number of tree nodes",
+     ylab="Tree impurity, aka tree cost, R(T)",
+     type="b",
+     col=ccolors[1]
+     ) 
+lines(AuditTree$cptable[,2]+1,AuditTree$cptable[,4],  # `xerror`, training cost with CV-data-sets
+      type="b",
       col=ccolors[2])
 legend("topright",
-       c("R(T) training","R(T) mean CV"),
+       c("Full data-set training","CV data-set training"),
        col=ccolors[1:2],
        lty=1)
 
+
 # find the tree with the minimum CV error, minCVerror_idx
-auditTree1$cptable # print complexity parameter table, where nsplit= nbr nodes -1
+AuditTree$cptable <- as.data.frame(AuditTree$cptable)
+minCVerror_idx <- which.min(AuditTree$cptable$xerror)
 
-auditTree1$cptable <- as.data.frame(auditTree1$cptable)
-minCVerror_idx <- which.min(auditTree1$cptable$xerror)
-# print complexity parameter table
-printcp(auditTree1,digits=3)
 # find corresponding mean(CV_error) and sd(CV_error)
-minCVerr_mean <- auditTree1$cptable$xerror[minCVerror_idx]
-minCVerr_std <- auditTree1$cptable$xstd[minCVerror_idx]
-
-# from root, find first tree whose mean(CV_error) <= minCVerr_mean + 1* minCVerr_std
-i = 1
-while(auditTree1$cptable$xerror[i] > (minCVerr_mean + minCVerr_std)) { i <- i+1 } 
-
-# post-pruning of Tree
-alpha = auditTree1$cptable$CP[i]
-auditTree1_optimum <- prune(auditTree1,cp=alpha)
-
-# plot and rules
-rpart.plot(auditTree1_optimum, main="Optimal Tree")
-asRules(auditTree1_optimum)
-
-par(mfrow = c(1,1), xpd = NA)
-plot(auditTree1_optimum)
-text(auditTree1_optimum,use.n=T,cex=0.8,col="darkblue")
-
-## Get rid of var "Deductions" to compare results and decision trees
-auditTree2 <- rpart(Adjusted ~., 
-                    data=audit[trainRows,-c(8,11)],  # take out illustrative var. "Adjustment", keep "Deductions"
-                    weights=NULL,
-                    method="class",
-                    control=rpart.control(cp=0.001, xval=10))
-# cp = complexity parameter = min value of alpha, when growing the initial tree
-# xval = nbr of CV runs performed on training data
-
-# plot raw tree
-par(mfrow = c(1,1), xpd = NA)
-plot(auditTree2)
-text(auditTree2,use.n=T,cex=0.8,col="darkblue")
-#par(mfrow = c(1,1))
-
-plotcp(auditTree2)             # visualize cross validation results
-
-# plot Relative tree impurity, R(T), vs Split number, aka Tree size
-plot(auditTree2$cptable[,2],auditTree$cptable[,3],
-     type="l",
-     xlab="size of tree",
-     ylab="relative tree impurity",
-     main="R(T)",
-     col=ccolors[1])
-lines(auditTree2$cptable[,2],auditTree$cptable[,4],
-      col=ccolors[2])
-legend("topright",
-       c("R(T) training","R(T) mean CV"),
-       col=ccolors[1:2],
+minCVerr_mean <- AuditTree$cptable$xerror[minCVerror_idx]
+minCVerr_std <- AuditTree$cptable$xstd[minCVerror_idx]
+lines(c(0,max(AuditTree$cptable[,2])+1),c(minCVerr_mean,minCVerr_mean),
+       col="red",
+       lty=2)
+lines(c(0,max(AuditTree$cptable[,2])+1),c(minCVerr_mean+minCVerr_std,minCVerr_mean+minCVerr_std),
+      col="red",
+      lty=3)
+arrows(AuditTree$cptable$nsplit[i]+1, min(AuditTree$cptable[,3]), 
+       AuditTree$cptable$nsplit[i]+1, 0.95*(AuditTree$cptable$xerror[i]),
+       length = 0.1,
+       angle = 30,
+       code = 2, 
+       col = "black",
        lty=1)
 
-# find the tree with the minimum CV error, minCVerror_idx
-auditTree2$cptable <- as.data.frame(auditTree2$cptable)
-minCVerror_idx <- which.min(auditTree2$cptable$xerror)
-# print complexity parameter table
-printcp(auditTree2,digits=3)
-# find corresponding mean(CV_error) and sd(CV_error)
-minCVerr_mean <- auditTree2$cptable$xerror[minCVerror_idx]
-minCVerr_std <- auditTree2$cptable$xstd[minCVerror_idx]
-
-# from root, find first tree whose mean(CV_error) <= minCVerr_mean + 1* minCVerr_std
+# from root, find first tree whose mean(CV_error) <= minCVerr_mean + 1 * minCVerr_std
 i = 1
-if(auditTree2$cptable$xerror[i] <= minCVerr_mean + minCVerr_std) {
-    break
-} else {
-    i <- i+1
-}
+while(AuditTree$cptable$xerror[i] > (minCVerr_mean + minCVerr_std)) { i <- i+1 } 
 
 # post-pruning of Tree
-alpha = auditTree2$cptable$CP[i]
-auditTree2_optimum <- prune(auditTree2,cp=alfa)
+alpha = AuditTree$cptable$CP[i]
+AuditTree_optimum <- prune(AuditTree,cp=alpha)
 
 # plot and rules
-rpart.plot(auditTree2_optimum, main="Optimal Tree")
-asRules(auditTree2_optimum)
+par(mfrow = c(1,1), xpd = NA)
+plot(AuditTree_optimum)
+text(AuditTree_optimum,use.n=T,cex=0.8,col="darkblue")
+#fancyRpartPlot(AuditTree_optimum)
+#rpart.plot(AuditTree_optimum, main="Optimal Tree")
+asRules(AuditTree_optimum)
+
+
 
 # ############################################
 ## 5: Plot the importance of variables in the prediction.
 # ############################################
 
-auditTree1_optimum$variable.importance
+AuditTree_optimum$variable.importance
+varImp_plot <- barplot(AuditTree_optimum$variable.importance,
+                    main="Variable importance",
+                    sub=expression("(Complexity parameter "~ alpha ~ "= 0.01250)"),
+                    xaxt="n",
+                    xlab="Variables",
+                    ylab="",
+                    border="blue", 
+                    col="green",
+                    las=1,
+                    freq=T)
+text(cex=1, x=varImp_plot-.25, y=-17, labels(AuditTree_optimum$variable.importance), xpd=TRUE, srt=45)
 
+rm(varImp_plot)
 
 # ############################################
 ## 6: Compute the accuracy, precision, recall and AUC on test data.

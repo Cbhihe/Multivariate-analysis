@@ -32,19 +32,24 @@ setRepositories(ind = c(1:6,8))
 #setRepositories()   # to specify repo on the fly:
 #chooseCRANmirror()  # in case package(s) cannot be downloaded from default repo
 
-library(xlsx, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
-
+#library(xlsx, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
 #install.packages(c("rpart", "rattle", "rpart.plot"))
 library("rpart", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # tree building
 #library("rpart.plot", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")   # tree plotting
 library("rattle", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")       # asRules(), fancyRpartPlot()
+install.packages("caret")                                              # confusionMatrix()
+library("caret", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
+#install.packages("ROCR")
+library(ROCR)
+#install.packages("randomForest")
+library(randomForest)
 
 library("VIM", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
 #library("mice", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # for imputations
 #library(FactoMineR, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")    # to use PCA, CA and MCA method
 require(graphics, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")       # enhanced graphics
-library(ggplot2, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # to enhance graph plotting
-library(ggrepel, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # to plot with well behaved labeling
+# library(ggplot2, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # to enhance graph plotting
+# library(ggrepel, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # to plot with well behaved labeling
 
 
 # ############################################
@@ -211,6 +216,7 @@ AuditTree <- rpart(Adjusted ~.,
                    data=audit[trainRows,-c(11)],  # take out illustrative var. "Adjustment"
                    weights=NULL,
                    method="class",
+                   usesurrogate=2,    # if all surrogate are missing, obs is classified according to majority
                    control=rpart.control(cp=0.001, xval=10))
 # cp = complexity parameter = min value of alpha, when growing the initial tree
 # xval = nbr of CV runs performed on training data
@@ -258,6 +264,11 @@ lines(c(0,max(AuditTree$cptable[,2])+1),c(minCVerr_mean,minCVerr_mean),
 lines(c(0,max(AuditTree$cptable[,2])+1),c(minCVerr_mean+minCVerr_std,minCVerr_mean+minCVerr_std),
       col="red",
       lty=3)
+
+# from root, find first tree whose mean(CV_error) <= minCVerr_mean + 1 * minCVerr_std
+i = 1
+while(AuditTree$cptable$xerror[i] > (minCVerr_mean + minCVerr_std)) { i <- i+1 } 
+
 arrows(AuditTree$cptable$nsplit[i]+1, min(AuditTree$cptable[,3]), 
        AuditTree$cptable$nsplit[i]+1, 0.95*(AuditTree$cptable$xerror[i]),
        length = 0.1,
@@ -266,9 +277,6 @@ arrows(AuditTree$cptable$nsplit[i]+1, min(AuditTree$cptable[,3]),
        col = "black",
        lty=1)
 
-# from root, find first tree whose mean(CV_error) <= minCVerr_mean + 1 * minCVerr_std
-i = 1
-while(AuditTree$cptable$xerror[i] > (minCVerr_mean + minCVerr_std)) { i <- i+1 } 
 
 # post-pruning of Tree
 alpha = AuditTree$cptable$CP[i]
@@ -278,7 +286,7 @@ AuditTree_optimum <- prune(AuditTree,cp=alpha)
 par(mfrow = c(1,1), xpd = NA)
 plot(AuditTree_optimum)
 text(AuditTree_optimum,use.n=T,cex=0.8,col="darkblue")
-#fancyRpartPlot(AuditTree_optimum)
+fancyRpartPlot(AuditTree_optimum)
 #rpart.plot(AuditTree_optimum, main="Optimal Tree")
 asRules(AuditTree_optimum)
 
@@ -307,10 +315,34 @@ rm(varImp_plot)
 ## 6: Compute the accuracy, precision, recall and AUC on test data.
 # ############################################
 
+classPredict <- predict(AuditTree_optimum,
+                        newdata = audit[testRows,-c(11,12)], 
+                        type = "class")
 
+## Confusion Matrix
+# consider modality (or class) "1" as positive (constructive audit)
+cf <- confusionMatrix(classPredict, 
+                      factor(audit$Adjusted[testRows]),  # reference factor
+                      positive="1",
+                      dnn = c("Prediction", "Reference")
+                      )
+t(cf$table)  # transpose to print ConfMat as Tomàs Aluja wants it.
 
+## AUC
+probPredict <- as.data.frame(predict(AuditTree_optimum,
+                                     newdata = audit[testRows,-c(11,12)], 
+                                     type = "prob")
+                             )
+
+pred_audit <- prediction(probPredict$`1`, audit$Adjusted[testRows])
+roc <- performance(pred_audit,measure="tpr",x.measure="fpr")
+plot(roc, main="ROC curve", col="red")
+lines(c(0,1),c(0,1),col="blue")
+auc <- performance(pred_audit,"auc")
+(auc <- as.numeric(auc@y.values))
+text(x=0.5,y=0.6,label=paste0("AUC=",round(auc,4)), pos=2, col="blue")
 
 # ############################################
 ## 7:  Perform a Random Forest on test data
 # ############################################
-
+# impute missings in `audit` before conducting randomForest

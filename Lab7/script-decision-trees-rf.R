@@ -1,10 +1,8 @@
 ## ############################################
-##  MIRI:     MVA
-##  LAB #7:   Decision Trees
-##  Authors:  Cedric Bhihe <cedric.bhihe@gmail.com>
-##            Santi Calvo <s.calvo93@gmail.com>  
-##  Delivery: before 2018.05.27 - 23:55
-##  Script:   lab7-script_mva.R
+##  Topic:   Decision Trees and Random Forest
+##  Author:  Cedric Bhihe 
+##  Date:    2018.05.27
+##  Script:  script-decision-trees-rf.R
 ## ############################################
 
 
@@ -17,11 +15,9 @@ rm(list=ls(all=TRUE))
 options(scipen=6) # R switches to sci notation above 5 digits on plot axes
 set.seed(932178)
 setwd("~/Documents/Academic/UPC/MIRI/Subjects/MVA_multivariate-analysis/Labs/")
-#setwd("C:/Users/calvo/Desktop/UPC/Courses/Third_semester/MVA/Exercises/Labs/")
 ccolors=c("blue","red","green","orange","cyan","tan1","darkred","honeydew2","violetred",
           "palegreen3","peachpuff4","lavenderblush3","lightgray","lightsalmon","wheat2")
 datestamp <- format(Sys.time(),"%Y%m%d-%H%M%S"); 
-
 
 
 # ############################################
@@ -37,15 +33,17 @@ setRepositories(ind = c(1:6,8))
 library("rpart", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # tree building
 #library("rpart.plot", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")   # tree plotting
 library("rattle", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")       # asRules(), fancyRpartPlot()
-install.packages("caret")                                              # confusionMatrix()
+#install.packages("caret")                                              # confusionMatrix()
 library("caret", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
-#install.packages("ROCR")
-library(ROCR)
-#install.packages("randomForest")
-library(randomForest)
+#install.packages("ROCR")                                               # calculation of ROC, AUC, etc.
+library(ROCR, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
+#install(dplyr)                                                         # use of mutate()
+library(dplyr,lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
+#install.packages("randomForest")                                       # randomForest() analysis
+library(randomForest, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
 
 library("VIM", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")
-#library("mice", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # for imputations
+library("mice", lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # for imputations
 #library(FactoMineR, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")    # to use PCA, CA and MCA method
 require(graphics, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")       # enhanced graphics
 # library(ggplot2, lib.loc="~/R/x86_64-pc-linux-gnu-library/3.5")        # to enhance graph plotting
@@ -340,9 +338,88 @@ plot(roc, main="ROC curve", col="red")
 lines(c(0,1),c(0,1),col="blue")
 auc <- performance(pred_audit,"auc")
 (auc <- as.numeric(auc@y.values))
-text(x=0.5,y=0.6,label=paste0("AUC=",round(auc,4)), pos=2, col="blue")
+text(x=0.5,y=0.6,label=paste0("AUC=",round(auc,4)), pos=2, col="red")
 
 # ############################################
 ## 7:  Perform a Random Forest on test data
 # ############################################
-# impute missings in `audit` before conducting randomForest
+## impute missings in `audit` before conducting randomForest
+# mids = multiply imputed data-set
+audit_mids <- mice(audit, 
+                  m = 5,           # nbr of multiple imputation
+                  where=is.na(audit),
+                  maxit = 5, 
+                  method = "cart"  # univariate imputation for classification and regression trees
+                  )
+
+audit_imp <- complete(audit_mids,
+                      1,
+                      include=F
+                      )
+
+
+## perfom randomForest analysis
+audit_imp <- audit_imp[,-c(10,11)]
+audit_imp <- as.data.frame(cbind(audit_imp[,-10],
+                                 Adjusted=as.character(audit_imp[,10]))
+                           ) # ensure response var is character
+audit_imp <- audit_imp %>% mutate_if(is.character,as.factor) # transform all character-vars into factor-vars
+
+auditRF <- randomForest(formula = Adjusted ~.,
+                        data=audit_imp[trainRows,],
+                        mtry=3,      # three predictor-vars selected randomly at each split
+                        xtest=audit_imp[testRows,-10],
+                        ytest=audit_imp[testRows,10],
+                        #ytest=as.factor(audit_imp$Adjusted[testRows]),
+                        importance=T,
+                        ntree=500,   # acceptably large value to ensure each sample row is predicted 
+                                     # at least 2-digit nbr of times on average
+                        nodesize = 50,
+                        maxnodes = 40,
+                        norm.votes=T
+                        )
+
+## plot variable's importance
+varImp(auditRF)
+par(mfrow = c(1,2),adj=1,bty="o",col="black",xaxs="r")
+varImpPlot(auditRF,type=1,pch=15,col="blue",main="",cex=1.3) # decrease in accuracy
+varImpPlot(auditRF,type=2,pch=16,col="blue",main="",cex=1.3) # decrease in node impurity
+par(mfrow = c(1,1))
+
+## Confusion Matrix and AUC
+classAudit_train <- randomForest(formula = Adjusted ~.,
+                                 data=audit_imp[trainRows,]
+                                 )
+
+classPredictRF <- as.factor(predict(classAudit_train,
+                                        newdata=audit_imp[testRows,-10], 
+                                        type="class")
+                                )
+
+
+# consider modality (or class) "1" as positive (constructive audit)
+cfRF <- confusionMatrix(data=classPredictRF,
+                        reference=factor(audit_imp$Adjusted[testRows]),  # reference factor
+                        positive="1",
+                        dnn = c("Prediction", "Reference")
+                        )
+
+t(cfRF$table)  # transpose to print ConfMat as Tomàs Aluja wants it.
+
+## AUC
+probPredictRF <- as.data.frame(predict(classAudit_train,
+                                       newdata=audit_imp[testRows,-10], 
+                                       type = "prob")
+                               )
+
+pred_auditRF <- prediction(probPredictRF$`1`,
+                         audit_imp$Adjusted[testRows]
+                         )
+
+rocRF <- performance(pred_auditRF,measure="tpr",x.measure="fpr")
+plot(rocRF, main="ROC curve (from RF)", col="red")
+lines(c(0,1),c(0,1),col="blue")
+aucRF <- performance(pred_auditRF,"auc")
+(aucRF <- as.numeric(aucRF@y.values))
+text(x=0.5,y=0.6,label=paste0("AUC (RF)=",round(aucRF,4)), pos=2, col="red")
+

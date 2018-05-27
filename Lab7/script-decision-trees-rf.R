@@ -1,6 +1,6 @@
 ## ############################################
-##  Topic:   Decision Trees and Random Forest
-##  Author:  Cedric Bhihe 
+##  Topic:    Decision Trees and Random Forest
+##  Author:  Cedric Bhihe
 ##  Date:    2018.05.27
 ##  Script:  script-decision-trees-rf.R
 ## ############################################
@@ -71,18 +71,18 @@ csvSaveF <- function(dataObj,targetfile) {
 #     Convert to csv
 # ############################################
 
-# audit <- read.xlsx("Lab7/audit.xlsx",
-#                  sheetIndex=1,
-#                  sheetName=NULL,
-#                  header=T,
-#                  as.data.frame=T,
-#                  encoding="UTF-8",
-#                  keepFormulas=F)
-# 
-# rownames(audit) <- audit[,1]
-# audit <- audit[,-1]
-# targetfile <- "Data/audit.csv"
-# csvSaveF(audit,targetfile)  # save to disk
+audit <- read.xlsx("Lab7/audit.xlsx",
+                 sheetIndex=1,
+                 sheetName=NULL,
+                 header=T,
+                 as.data.frame=T,
+                 encoding="UTF-8",
+                 keepFormulas=F)
+
+rownames(audit) <- audit[,1]
+audit <- audit[,-1]
+targetfile <- "Data/audit.csv"
+csvSaveF(audit,targetfile)  # save to disk
 
 # import csv file 
 sourcefile <- "Data/audit.csv"

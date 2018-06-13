@@ -267,8 +267,8 @@ lines(c(0,max(AuditTree$cptable[,2])+1),c(minCVerr_mean+minCVerr_std,minCVerr_me
 i = 1
 while(AuditTree$cptable$xerror[i] > (minCVerr_mean + minCVerr_std)) { i <- i+1 } 
 
-arrows(AuditTree$cptable$nsplit[i]+1, min(AuditTree$cptable[,3]), 
-       AuditTree$cptable$nsplit[i]+1, 0.95*(AuditTree$cptable$xerror[i]),
+arrows(AuditTree$cptable$nsplit[i]+1, 0.95*(AuditTree$cptable$xerror[i]), 
+       AuditTree$cptable$nsplit[i]+1, min(AuditTree$cptable[,3]),
        length = 0.1,
        angle = 30,
        code = 2, 
@@ -334,11 +334,11 @@ probPredict <- as.data.frame(predict(AuditTree_optimum,
 
 pred_audit <- prediction(probPredict$`1`, audit$Adjusted[testRows])
 roc <- performance(pred_audit,measure="tpr",x.measure="fpr")
-plot(roc, main="ROC curve", col="red")
+plot(roc, main="ROC curve (from CV)", col="red")
 lines(c(0,1),c(0,1),col="blue")
 auc <- performance(pred_audit,"auc")
 (auc <- as.numeric(auc@y.values))
-text(x=0.5,y=0.6,label=paste0("AUC=",round(auc,4)), pos=2, col="red")
+text(x=0.5,y=0.6,label=paste0("AUC (CV)=",round(auc,4)), pos=2, col="red")
 
 # ############################################
 ## 7:  Perform a Random Forest on test data
